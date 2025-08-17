@@ -1,0 +1,1999 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ICT_SMC_Scalping_System (v8.0 - ULTIMATE FINAL WITH EMERGENCY MODE)
+
+//@version=6
+strategy("ICT/SMC Crypto Scalping ULTIMATE v8.0", 
+         overlay=true, 
+         max_boxes_count=500, 
+         max_lines_count=500, 
+         max_labels_count=500,
+         initial_capital=10000,
+         currency=currency.USD,
+         commission_type=strategy.commission.percent,
+         commission_value=0.075,
+         slippage=3,
+         pyramiding=0,
+         calc_on_every_tick=false,
+         process_orders_on_close=true,
+         default_qty_type=strategy.percent_of_equity,
+         default_qty_value=10,
+         close_entries_rule="ANY")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type OrderBlock
+    box boxObj
+    label labelObj
+    float top
+    float bottom
+    int startBar
+    bool tested
+    float score
+    int retests
+
+type FairValueGap
+    box boxObj
+    label labelObj
+    float top
+    float bottom
+    int startBar
+    bool tested
+    float score
+    int retests
+
+type KeyLevel
+    float level
+    string timeframe
+    string type
+    float strength
+    int creation_bar
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ULTIMATE SETTINGS v8.0 WITH COMPREHENSIVE TOOLTIPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Signal Profile & Multi-Tier System
+g_signals = "🎯 Signal Profile & Multi-Tier System"
+signalProfile = input.string("Aggressive", "Signal Profile", options=["Conservative", "Balanced", "Aggressive", "Custom"], group=g_signals, tooltip="🎯 CRYPTO-OPTIMIZED v8.0:\n• Conservative: 55%/40%/28% - dla większych pozycji, swing style\n• Balanced: 48%/30%/18% - stary Aggressive jako nowy standard\n• Aggressive: 42%/25%/15% - MAKSYMALNA aktywność M5 scalping\n• Custom: pełna kontrola parametrów")
+
+premiumThreshold = input.float(0.60, "Premium Threshold", minval=0.5, maxval=0.9, step=0.02, group=g_signals, tooltip="🎯 FINE-TUNED: 0.62→0.60\nMinimalna siła sygnału dla rangi Premium.\n• 0.60 = sweet spot dla crypto momentum\n• Najrzadsze ale najpewniejsze sygnały (1-3 dziennie)")
+
+standardThreshold = input.float(0.40, "Standard Threshold", minval=0.3, maxval=0.7, step=0.02, group=g_signals, tooltip="🎯 FINE-TUNED: 0.42→0.40\nMinimalna siła sygnału dla rangi Standard.\n• 0.40 = optymalne dla M5 scalping\n• Zrównoważone sygnały (3-6 dziennie)")
+
+quickThreshold = input.float(0.28, "Quick Threshold", minval=0.2, maxval=0.5, step=0.02, group=g_signals, tooltip="🔧 POZOSTAJE: 0.28\nMinimalna siła sygnału dla rangi Quick.\n• 0.28 = sprawdzona wartość dla crypto\n• Najczęstsze sygnały (5-12 dziennie)")
+
+useZoneRetests = input.bool(true, "Enhanced Zone Re-tests", group=g_signals, tooltip="Wzmacnia siłę sygnału (+25-35%) dla stref testowanych 1-2 razy")
+useMicroTrend = input.bool(true, "Micro-Trend Detection", group=g_signals, tooltip="EMA3 vs EMA5 - KLUCZOWE dla Emergency Mode!")
+adaptiveCooldown = input.bool(true, "Smart Cooldown System", group=g_signals, tooltip="Dynamiczny cooldown dostosowany do sesji i volatility")
+
+// 🚀 Dynamic Move Optimizations
+g_optimization = "🚀 Dynamic Move Optimizations"
+zone_check_limit = input.int(8, "Zone Check Limit", minval=3, maxval=15, group=g_optimization, tooltip="🔧 KLUCZOWA ZMIANA: 3→8\nPoprawia detekcję po większych cofnięciach")
+enable_dynamic_min_age = input.bool(true, "Dynamic Min Zone Age", group=g_optimization, tooltip="Pozwala na młodsze strefy przy momentum")
+min_zone_age = input.int(1, "Base Min Zone Age", minval=0, maxval=5, group=g_optimization, tooltip="🎯 FINE-TUNED: 2→1\nSzybsze reagowanie na świeże strefy")
+
+// 🎯 Priority Enhancements (P1-P4)
+g_priority = "🎯 Priority Enhancements (P1-P4)"
+enable_mitigation_mode = input.bool(true, "P1: Zone Mitigation Mode", group=g_priority, tooltip="🥇 PRIORYTET 1: Mitigation Trading\n• Long: preferuje dolną 30% strefy\n• Short: preferuje górną 30% strefy\n• Lepszy timing i RR ratio")
+
+mitigation_threshold = input.float(0.30, "Mitigation Position %", minval=0.2, maxval=0.5, step=0.05, group=g_priority, tooltip="🎯 FINE-TUNED: 0.33→0.30\n0.30 = sweet spot dla M5 scalping")
+
+enable_dynamic_opposite_zone = input.bool(true, "P2: Dynamic Opposite Zone", group=g_priority, tooltip="🥈 PRIORYTET 2: Po Fresh BOS luzuje wymagania o 50%\nZapobiega blokowaniu przez stare przeciwne strefy")
+
+dynamic_reduction_factor = input.float(0.5, "BOS Reduction Factor", minval=0.4, maxval=0.8, step=0.1, group=g_priority, tooltip="🎯 FINE-TUNED: 0.6→0.5\n50% redukcja = optymalne dla momentum")
+
+enable_rising_adx = input.bool(true, "P3: Rising ADX Enhancement", group=g_priority, tooltip="🥉 PRIORYTET 3: Akceptuje rosnący ADX przez 3 bary\nŁapie momentum przed 'oficjalnym' trendem")
+
+// 🚨 Emergency Impulse Mode (P4)
+g_emergency = "🚨 Emergency Impulse Mode (P4)"
+enable_emergency_mode = input.bool(true, "Enable Emergency Impulse Mode", group=g_emergency, tooltip="🏆 PRIORYTET 4: PRZYCISK TURBO!\n• 4 warunki: Volume 3.0x + Fresh BOS ≤3 + Micro-trend + Rising ADX\n• POMIJA większość filtrów\n• Wizualizacja: małe zielone/pomarańczowe strzałki")
+
+emergency_volume_threshold = input.float(2.8, "Emergency Vol Threshold", minval=2.5, maxval=5.0, step=0.1, group=g_emergency, tooltip="🎯 CRYPTO-TUNED: 3.0→2.8\nWięcej Emergency signals w crypto volatility")
+
+emergency_bos_age = input.int(3, "Emergency BOS Age", minval=1, maxval=8, group=g_emergency, tooltip="Maks wiek BOS dla Emergency\n3 bary = bardzo świeże momentum")
+
+emergency_signal_strength = input.float(0.42, "Emergency Base Strength", minval=0.3, maxval=0.7, step=0.05, group=g_emergency, tooltip="🎯 CRYPTO-TUNED: 0.45→0.42\nPasuje do nowego Aggressive threshold")
+
+// Advanced Quality Filters
+g_quality = "✨ Advanced Quality Filters"
+useFreshBOS = input.bool(true, "Fresh BOS Direction Filter", group=g_quality, tooltip="+12% za świeży BOS w kierunku sygnału")
+bosMaxAge = input.int(8, "Max BOS Age (bars)", minval=5, maxval=30, group=g_quality, tooltip="🎯 FINE-TUNED: 15→8\nTylko bardzo świeże przełamania")
+useZonePosition = input.bool(true, "Zone Position Filter", group=g_quality, tooltip="Sprawdza pozycję ceny w strefie")
+zonePositionThreshold = input.float(0.6, "Zone Position %", minval=0.5, maxval=0.8, step=0.1, group=g_quality, tooltip="Standard Mode: 60% strefy")
+useOppositeZoneFilter = input.bool(true, "Opposite Zone Distance", group=g_quality, tooltip="Filtr odległości od przeciwnych stref")
+minOppositeDistance = input.float(0.8, "Min Distance (ATR)", minval=0.5, maxval=2.0, step=0.1, group=g_quality, tooltip="Min odległość w ATR")
+ob_opposition_weight = input.float(1.0, "OB Opposition Weight", minval=0.5, maxval=1.5, step=0.1, group=g_quality, tooltip="Waga przeciwnych OB")
+fvg_opposition_weight = input.float(0.7, "FVG Opposition Weight", minval=0.3, maxval=1.0, step=0.1, group=g_quality, tooltip="Waga przeciwnych FVG")
+useVolumeDirection = input.bool(true, "Volume Direction Filter", group=g_quality, tooltip="+6% za dominujący kierunek wolumenu")
+useCryptoKillZones = input.bool(true, "Crypto Kill-Zones", group=g_quality, tooltip="Bonus za aktywne sesje")
+enableRoomFilter = input.bool(true, "Room-to-Target Filter", group=g_quality, tooltip="Sprawdza przestrzeń do celu")
+minRoomToTarget = input.float(0.8, "Min Room (ATR)", minval=0.3, maxval=2.0, step=0.1, group=g_quality, tooltip="Min przestrzeń w ATR")
+enableReEntry = input.bool(true, "Re-entry after Sweep", group=g_quality, tooltip="Bonus po liquidity sweep")
+reEntryBonus = input.float(0.15, "Re-entry Bonus", minval=0.05, maxval=0.3, step=0.05, group=g_quality, tooltip="Bonus za re-entry setup")
+
+// Extreme Conditions Protection
+g_extreme = "🚨 Extreme Conditions Protection"
+enable_extreme_filter = input.bool(true, "Extreme Conditions Filter", group=g_extreme, tooltip="Ochrona przed black swan events\nEmergency Mode ma whitelist (max 15% penalty)")
+extreme_vol_threshold = input.float(3.5, "Extreme Vol Threshold", minval=1.5, maxval=5.0, step=0.1, group=g_extreme, tooltip="Próg ekstremalnej volatility")
+extreme_range_threshold = input.float(4.5, "Extreme Range Threshold", minval=2.0, maxval=6.0, step=0.5, group=g_extreme, tooltip="Próg ekstremalnego range")
+gap_threshold = input.float(0.5, "Gap Threshold (ATR)", minval=0.2, maxval=1.0, step=0.1, group=g_extreme, tooltip="Próg znaczącego gap-u")
+smart_extreme_relief = input.bool(true, "Smart Extreme Relief", group=g_extreme, tooltip="Rozróżnia chaos od kontrolowanego impulsu")
+
+// Debug & Analysis Tools
+g_debug = "🔍 Debug & Analysis Tools"
+showSignalStrength = input.bool(false, "Show Signal Strength", group=g_debug, tooltip="Wyświetla B:X% S:Y% E:Z% nad świecami")
+showZoneInfo = input.bool(false, "Show Zone Info", group=g_debug, tooltip="Wyświetla jakość aktywnych stref")
+showMissedSignals = input.bool(false, "Show Missed Signals", group=g_debug, tooltip="🎯 NAJWAŻNIEJSZE DEBUG!\nSzare trójkąty = sygnały 'prawie'")
+missedThreshold = input.float(0.26, "Missed Signal Threshold", minval=0.15, maxval=0.35, group=g_debug, tooltip="🎯 FINE-TUNED: 0.18→0.26")
+
+// Backtest Controls
+g_backtest = "🧪 Backtest Controls"
+runAsStrategy = input.bool(true, "Run As Strategy", group=g_backtest, tooltip="Wykonuje transakcje w backtesterze")
+tierFilter = input.string("All", "Tier Filter", options=["All", "Premium only", "Standard only", "Quick only", "Emergency only"], group=g_backtest, tooltip="Filtr testu według tier")
+riskPerTrade = input.float(2.0, "Risk Per Trade (%)", minval=0.5, maxval=5.0, step=0.1, group=g_backtest, tooltip="Ryzyko per trade")
+maxPositionSize = input.float(15.0, "Max Position Size (%)", minval=5.0, maxval=30.0, step=1.0, group=g_backtest, tooltip="Maks pozycja")
+
+// Advanced Risk Management
+g_risk = "💰 Advanced Risk Management"
+riskRewardRatio = input.float(1.5, "Risk:Reward Ratio", minval=1.0, maxval=2.5, step=0.1, group=g_risk, tooltip="Bazowy R:R")
+useMultiTP = input.bool(true, "Multiple Take Profits", group=g_risk, tooltip="TP1/TP2/TP3 + BE/Trail")
+tp1RR = input.float(0.5, "TP1 RR", minval=0.3, maxval=0.8, step=0.1, group=g_risk)
+tp2RR = input.float(1.0, "TP2 RR", minval=0.8, maxval=1.5, step=0.1, group=g_risk)
+tp3RR = input.float(1.5, "TP3 RR", minval=1.2, maxval=2.5, step=0.1, group=g_risk)
+atrSLLength = input.int(14, "ATR Period", minval=8, maxval=20, group=g_risk)
+atrSLMultiplier = input.float(1.0, "ATR Multiplier", minval=0.8, maxval=1.5, step=0.1, group=g_risk, tooltip="Emergency: x0.9 (ciaśniejszy SL)")
+executionBuffer = input.float(0.025, "Execution Buffer %", minval=0.015, maxval=0.04, step=0.005, group=g_risk)
+
+// Performance & Visual
+g_performance = "⚡ Performance & Visual"
+enable_fast_mode = input.bool(true, "Fast Mode", group=g_performance, tooltip="Inteligentne zarządzanie pamięcią")
+cleanup_frequency = input.int(8, "Base Cleanup Frequency", minval=5, maxval=15, group=g_performance)
+max_objects_hard_limit = input.int(80, "Max Objects Hard Limit", minval=50, maxval=120, group=g_performance)
+showOrderBlocks = input.bool(true, "Show Order Blocks", group=g_performance)
+showFVG = input.bool(true, "Show Fair Value Gaps", group=g_performance)
+showSLTPLines = input.bool(true, "Show SL/TP Lines", group=g_performance)
+showSignalTier = input.bool(true, "Show Signal % Labels", group=g_performance)
+maxActiveOB = input.int(15, "Max Active OB", minval=8, maxval=25, group=g_performance)
+maxActiveFVG = input.int(15, "Max Active FVG", minval=8, maxval=20, group=g_performance)
+removeTestedBoxes = input.bool(true, "Remove Tested Boxes", group=g_performance)
+onCloseOnly = input.bool(true, "Signals Only on Bar Close", group=g_performance, tooltip="🚨 ZALECANE dla botów")
+
+// Colors
+g_colors = "🎨 Colors"
+bullishOBColor = input.color(color.new(color.green, 80), "Bullish OB", group=g_colors)
+bearishOBColor = input.color(color.new(color.red, 80), "Bearish OB", group=g_colors)
+bullishFVGColor = input.color(color.new(color.lime, 85), "Bullish FVG", group=g_colors)
+bearishFVGColor = input.color(color.new(color.orange, 85), "Bearish FVG", group=g_colors)
+premiumSignalColor = input.color(color.new(color.purple, 0), "Premium Signal", group=g_colors)
+standardSignalColor = input.color(color.new(color.blue, 0), "Standard Signal", group=g_colors)
+quickSignalColor = input.color(color.new(color.yellow, 0), "Quick Signal", group=g_colors)
+boxLabelColor = input.color(color.white, "Box Label Color", group=g_colors)
+
+// Sessions
+g_sessions = "🕐 Sessions"
+useSessions = input.bool(false, "Trade Only During Sessions", group=g_sessions)
+londonSession = input.session("0700-1100", "London Session", group=g_sessions)
+nySession = input.session("1200-1600", "New York Session", group=g_sessions)
+asiaSession = input.session("1900-0400", "Asia Session", group=g_sessions)
+
+// ICT/SMC Core
+g_ict = "🎯 ICT/SMC Core"
+fvgMinSize = input.float(0.05, "FVG Min Size %", minval=0.02, maxval=0.2, step=0.01, group=g_ict)
+obMinSize = input.float(0.06, "OB Min Size %", minval=0.03, maxval=0.3, step=0.01, group=g_ict)
+useLiquiditySweeps = input.bool(true, "Liquidity Sweeps", group=g_ict)
+
+// Filters & Indicators
+g_filter = "🚦 Filters & Indicators"
+adxMode = input.string("Soft", "ADX Mode", options=["Hard", "Soft", "Off"], group=g_filter)
+adxThreshold = input.int(20, "ADX Threshold", minval=12, maxval=30, group=g_filter)
+useEMAFilter = input.bool(true, "EMA Filter", group=g_filter)
+emaFastLength = input.int(9, "EMA Fast", group=g_filter)
+emaSlowLength = input.int(21, "EMA Slow", group=g_filter)
+mfi_length = input.int(14, "MFI Length", minval=8, maxval=20, group=g_filter)
+mfi_oversold = input.float(20, "MFI Oversold", minval=15, maxval=25, group=g_filter)
+mfi_overbought = input.float(80, "MFI Overbought", minval=75, maxval=88, group=g_filter)
+macd_fast = input.int(12, "MACD Fast", minval=8, maxval=15, group=g_filter)
+macd_slow = input.int(26, "MACD Slow", minval=20, maxval=35, group=g_filter)
+macd_signal_length = input.int(9, "MACD Signal", minval=5, maxval=15, group=g_filter)
+volumeThreshold = input.float(1.5, "Volume Spike", minval=1.1, maxval=2.5, step=0.1, group=g_filter)
+
+// VWAP
+g_vwap = "📉 VWAP"
+showDailyVWAP = input.bool(true, "Show VWAP", group=g_vwap)
+showVWAPBands = input.bool(true, "Show VWAP Bands", group=g_vwap)
+vwapStdDev = input.float(2.0, "VWAP StdDev", minval=0.5, maxval=5.0, step=0.5, group=g_vwap)
+
+// HTF & Crypto
+g_htf_crypto = "🔄 HTF & Crypto"
+useHTFConfirmation = input.bool(true, "HTF Confirmation", group=g_htf_crypto)
+htfMode = input.string("Soft", "HTF Mode", options=["Strict", "Soft", "Off"], group=g_htf_crypto)
+htf1 = input.timeframe("15", "HTF 1", group=g_htf_crypto)
+htf2 = input.timeframe("60", "HTF 2", group=g_htf_crypto)
+enableBTCCorrelation = input.bool(true, "BTC Correlation", group=g_htf_crypto)
+btcCorrelationThreshold = input.float(0.5, "BTC Corr Threshold", minval=0.2, maxval=0.8, group=g_htf_crypto)
+btcHardFilter = input.bool(true, "BTC Hard Filter", group=g_htf_crypto)
+useMarketRegime = input.bool(true, "Market Regime", group=g_htf_crypto)
+
+// Confluence Weights
+g_confluence = "🎯 Confluence Weights"
+zone_quality_weight = input.float(0.25, "Zone Quality", minval=0.1, maxval=0.4, step=0.05, group=g_confluence)
+key_levels_weight = input.float(0.20, "Key Levels", minval=0.1, maxval=0.3, step=0.05, group=g_confluence)
+technical_weight = input.float(0.25, "Technical", minval=0.1, maxval=0.4, step=0.05, group=g_confluence)
+context_weight = input.float(0.20, "Context", minval=0.1, maxval=0.3, step=0.05, group=g_confluence)
+crypto_weight = input.float(0.10, "Crypto", minval=0.05, maxval=0.2, step=0.05, group=g_confluence)
+
+// Key Levels
+g_levels = "🎯 Key Levels"
+enable_key_levels = input.bool(true, "Enable Key Levels", group=g_levels)
+key_level_tolerance = input.float(0.3, "Tolerance %", minval=0.1, maxval=0.8, step=0.1, group=g_levels)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VARIABLES AND ARRAYS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var bullishOBArray = array.new<OrderBlock>()
+var bearishOBArray = array.new<OrderBlock>()
+var bullishFVGArray = array.new<FairValueGap>()
+var bearishFVGArray = array.new<FairValueGap>()
+var keyLevels = array.new<KeyLevel>()
+var last_cleanup_bar = 0
+var lastSignalBar = 0
+var lastPremiumSignal = 0
+var lastStandardSignal = 0
+var lastBOSBar = 0
+var lastBOSDirection = 0
+
+// VWAP Variables
+var float cumPV = na
+var float cumV = na
+var float dailyVWAP = na
+
+// Debug Variables (GLOBAL SCOPE)
+var bool missedBuyCondition = false
+var bool missedSellCondition = false
+var bool emergencyBullCondition = false
+var bool emergencyBearCondition = false
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CALCULATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Basic calculations
+atr_value = ta.atr(atrSLLength)
+volume_avg = ta.sma(volume, 20)
+mfi_value = ta.mfi(hlc3, mfi_length)
+emaFast = ta.ema(close, emaFastLength)
+emaSlow = ta.ema(close, emaSlowLength)
+[macd_line, macd_signal, macd_histogram] = ta.macd(close, macd_fast, macd_slow, macd_signal_length)
+
+// VWAP
+is_new_day = ta.change(time("D")) != 0
+if is_new_day
+    cumPV := volume * hlc3
+    cumV := volume
+else
+    cumPV := nz(cumPV[1]) + volume * hlc3
+    cumV := nz(cumV[1]) + volume
+
+dailyVWAP := cumPV / cumV
+vwap_stdev = ta.stdev(hlc3, 20)
+dailyUpperBand = dailyVWAP + vwap_stdev * vwapStdDev
+dailyLowerBand = dailyVWAP - vwap_stdev * vwapStdDev
+
+// Market Structure
+pivotHigh = ta.pivothigh(high, 5, 5)
+pivotLow = ta.pivotlow(low, 5, 5)
+var float lastConfirmedHigh = na
+var float lastConfirmedLow = na
+
+if not na(pivotHigh)
+    lastConfirmedHigh := pivotHigh
+if not na(pivotLow)
+    lastConfirmedLow := pivotLow
+
+bullishBOSCross = ta.crossover(close, nz(lastConfirmedHigh))
+bearishBOSCross = ta.crossunder(close, nz(lastConfirmedLow))
+
+bullishBOS = not na(lastConfirmedHigh) and bullishBOSCross
+bearishBOS = not na(lastConfirmedLow) and bearishBOSCross
+
+if bullishBOS
+    lastBOSBar := bar_index
+    lastBOSDirection := 1
+if bearishBOS
+    lastBOSBar := bar_index
+    lastBOSDirection := -1
+
+// Liquidity Sweeps
+liquiditySweep = false
+if useLiquiditySweeps
+    sweep_high = high > nz(lastConfirmedHigh) and close < nz(lastConfirmedHigh)
+    sweep_low = low < nz(lastConfirmedLow) and close > nz(lastConfirmedLow)
+    liquiditySweep := sweep_high or sweep_low
+
+// Volume Analysis
+buyVolume = close > open ? volume : 0
+sellVolume = close < open ? volume : 0
+deltaVolume = buyVolume - sellVolume
+cvd = ta.cum(deltaVolume)
+volumeSpike = volume > volume_avg * volumeThreshold
+
+// Volume Direction
+buyVolumeRatio = buyVolume / (buyVolume + sellVolume + 1)
+sellVolumeRatio = sellVolume / (buyVolume + sellVolume + 1)
+
+// CVD Divergence
+price_falling = ta.falling(low, 5)
+price_rising = ta.rising(high, 5)
+bullishDivergence = ta.rising(cvd, 5) and price_falling
+bearishDivergence = ta.falling(cvd, 5) and price_rising
+
+// Micro-Trend Detection
+ema3 = ta.ema(close, 3)
+ema5 = ta.ema(close, 5)
+microTrendBullish = ema3 > ema5 and close > ema3
+microTrendBearish = ema3 < ema5 and close < ema5
+
+// HTF Analysis - POPRAWIONE
+htf1_close = request.security(syminfo.tickerid, htf1, close)[1]
+htf1_ema = request.security(syminfo.tickerid, htf1, ta.ema(close, 20))[1]
+htf2_close = request.security(syminfo.tickerid, htf2, close)[1]
+htf2_ema = request.security(syminfo.tickerid, htf2, ta.ema(close, 50))[1]
+htfBullish = htf1_close > htf1_ema and htf2_close > htf2_ema
+htfBearish = htf1_close < htf1_ema and htf2_close < htf2_ema
+
+// BTC Correlation
+btcCorrelation = 0.0
+var float btcTrend = 0.0
+if enableBTCCorrelation and not str.contains(syminfo.ticker, "BTC")
+    btc_close = request.security("BINANCE:BTCUSDT", timeframe.period, close)
+    btc_ema_fast = request.security("BINANCE:BTCUSDT", timeframe.period, ta.ema(close, 9))
+    btc_ema_slow = request.security("BINANCE:BTCUSDT", timeframe.period, ta.ema(close, 21))
+    btcTrend := btc_ema_fast > btc_ema_slow ? 1.0 : btc_ema_fast < btc_ema_slow ? -1.0 : 0.0
+    btcCorrelation := nz(ta.correlation(close, btc_close, 20))
+
+// Market Regime
+marketRegime = "NEUTRAL"
+if useMarketRegime
+    rsi_regime = ta.rsi(close, 14)
+    vol_regime_calc = atr_value / nz(ta.sma(atr_value, 50), atr_value)
+    if rsi_regime < 32 and vol_regime_calc > 1.15
+        marketRegime := "FEAR"
+    else if rsi_regime > 68 and vol_regime_calc > 1.15
+        marketRegime := "GREED"
+    else if vol_regime_calc < 0.75
+        marketRegime := "LOW_VOL"
+
+// OI Proxy
+oiProxy = ta.sma(volume, 24)
+oiProxy_prev = nz(oiProxy[1])
+oiChange = oiProxy_prev > 0 ? (oiProxy - oiProxy_prev) / oiProxy_prev * 100 : 0
+oiRising = oiChange > 0.5
+oiBullish = oiRising and close > close[1]
+oiBearish = oiRising and close < close[1]
+
+// P3: ADX with Rising Enhancement
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+isTrending = adx > adxThreshold
+risingADX = enable_rising_adx ? ta.rising(adx, 3) : false
+
+// Pre-calculated variables
+mfi_rising_3 = ta.rising(mfi_value, 3)
+mfi_falling_3 = ta.falling(mfi_value, 3)
+macd_crossover = ta.crossover(macd_line, macd_signal)
+macd_crossunder = ta.crossunder(macd_line, macd_signal)
+
+// Market condition with smart extreme relief
+current_atr_mc = atr_value
+avg_atr_mc = ta.sma(atr_value, 20)
+vol_ratio = current_atr_mc / avg_atr_mc
+vol_spike_extreme = volume > volume_avg * 3.0
+current_range_mc = high - low
+avg_range_mc = ta.sma(high - low, 14)
+range_ratio = current_range_mc / avg_range_mc
+gap_size = math.abs(open - close[1])
+significant_gap = gap_size > atr_value * gap_threshold
+
+market_condition = "NORMAL"
+confidence_penalty = 0.0
+
+if vol_ratio > extreme_vol_threshold
+    market_condition := "HIGH_VOLATILITY"
+    confidence_penalty := 0.15
+
+if range_ratio > extreme_range_threshold and vol_spike_extreme
+    market_condition := "EXTREME_MOVE"
+    confidence_penalty := 0.25
+
+if significant_gap
+    market_condition := "GAP_OPEN"
+    confidence_penalty := 0.10
+
+if vol_ratio > 2.0 and vol_spike_extreme
+    market_condition := "MARKET_STRESS"
+    confidence_penalty := 0.30
+
+// Smart extreme relief
+if smart_extreme_relief and enable_extreme_filter
+    if useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= 5
+        confidence_penalty := confidence_penalty * 0.5
+    if volumeSpike and volume > volume_avg * 2.5
+        confidence_penalty := confidence_penalty * 0.7
+
+// 🚨 EMERGENCY IMPULSE MODE - 4 CONDITIONS - POPRAWIONE
+fresh_emergency_bos = lastBOSBar > 0 and (bar_index - lastBOSBar) <= emergency_bos_age
+emergency_volume_condition = volume > volume_avg * emergency_volume_threshold
+adx_rising_emergency = ta.rising(adx, 3)
+
+emergency_bull_conditions = enable_emergency_mode and fresh_emergency_bos and lastBOSDirection == 1 and emergency_volume_condition and microTrendBullish and adx_rising_emergency
+
+emergency_bear_conditions = enable_emergency_mode and fresh_emergency_bos and lastBOSDirection == -1 and emergency_volume_condition and microTrendBearish and adx_rising_emergency
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+getSmartMissedThreshold() =>
+    base_threshold = missedThreshold
+    if signalProfile == "Conservative"
+        base_threshold
+    else if signalProfile == "Balanced"  
+        math.max(0.15, base_threshold - 0.02)
+    else if signalProfile == "Aggressive"
+        math.max(0.15, base_threshold - 0.04)
+    else
+        base_threshold
+
+getPairTier() =>
+    symbol = syminfo.ticker
+    if str.contains(symbol, "BTC") or str.contains(symbol, "ETH")
+        1
+    else if (str.contains(symbol, "BNB") or str.contains(symbol, "SOL") or 
+             str.contains(symbol, "XRP") or str.contains(symbol, "ADA") or 
+             str.contains(symbol, "LINK") or str.contains(symbol, "DOT") or
+             str.contains(symbol, "MATIC") or str.contains(symbol, "UNI") or
+             str.contains(symbol, "AVAX") or str.contains(symbol, "DOGE"))
+        2
+    else
+        3
+
+pairTier = getPairTier()
+
+getRecommendedLeverage() =>
+    base_leverage = pairTier == 1 ? 50 : pairTier == 2 ? 30 : 20
+    vol_percent = (atr_value / close) * 100
+    if vol_percent > 2.5
+        math.round(base_leverage * 0.6)
+    else if vol_percent > 1.8
+        math.round(base_leverage * 0.8)
+    else
+        base_leverage
+
+recommendedLeverage = getRecommendedLeverage()
+
+getPositionSizeMultiplier(tier) =>
+    tier == "Premium" ? 1.5 : tier == "Standard" ? 1.0 : tier == "Emergency" ? 1.3 : 0.7
+
+inSession() =>
+    if not useSessions
+        true
+    else
+        isLondon = not na(time(timeframe.period, londonSession, "UTC"))
+        isNY = not na(time(timeframe.period, nySession, "UTC"))
+        isAsia = not na(time(timeframe.period, asiaSession, "UTC"))
+        isLondon or isNY or isAsia
+
+sessionText() =>
+    if not useSessions
+        "All"
+    else
+        isLondon = not na(time(timeframe.period, londonSession, "UTC"))
+        isNY = not na(time(timeframe.period, nySession, "UTC"))
+        isAsia = not na(time(timeframe.period, asiaSession, "UTC"))
+        if isLondon and isNY
+            "London/NY"
+        else if isLondon
+            "London"
+        else if isNY
+            "NY"
+        else if isAsia
+            "Asia"
+        else
+            "Closed"
+
+getCryptoKillZoneBonus() =>
+    if not useCryptoKillZones
+        0.0
+    else
+        isLondon = not na(time(timeframe.period, londonSession, "UTC"))
+        isNY = not na(time(timeframe.period, nySession, "UTC"))
+        isAsia = not na(time(timeframe.period, asiaSession, "UTC"))
+        if isLondon
+            0.12
+        else if isNY
+            0.10
+        else if isAsia
+            0.08
+        else
+            0.0
+
+getAdvancedZoneScore(candle_index) =>
+    base_score = 1.0
+    candle_vol_ratio = volume[candle_index] / volume_avg
+    if candle_vol_ratio > 2.5
+        base_score += 3.0
+    else if candle_vol_ratio > 2.0
+        base_score += 2.5
+    else if candle_vol_ratio > 1.5
+        base_score += 2.0
+    else if candle_vol_ratio > 1.2
+        base_score += 1.0
+    candle_range = high[candle_index] - low[candle_index]
+    if candle_range > atr_value * 1.8
+        base_score += 2.5
+    else if candle_range > atr_value * 1.5
+        base_score += 2.0
+    else if candle_range > atr_value * 1.2
+        base_score += 1.0
+    base_score += getCryptoKillZoneBonus() * 10
+    math.min(base_score, 5.0)
+
+getDynamicMinAge() =>
+    base_age = min_zone_age
+    if enable_dynamic_min_age
+        if useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge
+            base_age := math.max(0, base_age - 1)
+        if volumeSpike and volume > volume_avg * 2.0
+            base_age := math.max(0, base_age - 1)
+    base_age
+
+// POPRAWIONA FUNKCJA getAdaptiveThresholds()
+getAdaptiveThresholds() =>
+    premium = if signalProfile == "Conservative"
+        0.55
+    else if signalProfile == "Balanced"
+        0.48
+    else if signalProfile == "Aggressive"
+        0.42
+    else
+        premiumThreshold
+    
+    standard = if signalProfile == "Conservative"
+        0.40
+    else if signalProfile == "Balanced"
+        0.30
+    else if signalProfile == "Aggressive"
+        0.25
+    else
+        standardThreshold
+    
+    quick = if signalProfile == "Conservative"
+        0.28
+    else if signalProfile == "Balanced"
+        0.18
+    else if signalProfile == "Aggressive"
+        0.15
+    else
+        quickThreshold
+    
+    multiplier = 1.0
+    [premium * multiplier, standard * multiplier, quick * multiplier]
+
+isNearKeyLevel(price) =>
+    if not enable_key_levels or array.size(keyLevels) == 0
+        [false, 0.0]
+    else
+        max_strength = 0.0
+        near_level = false
+        for i = 0 to math.min(14, array.size(keyLevels) - 1)
+            level = array.get(keyLevels, i)
+            tolerance = level.level * key_level_tolerance / 100
+            if math.abs(price - level.level) <= tolerance
+                near_level := true
+                if level.strength > max_strength
+                    max_strength := level.strength
+        [near_level, max_strength]
+
+getRoomToTarget(is_buy) =>
+    if not enableRoomFilter
+        999.0
+    else
+        min_room = 999.0
+        if not na(dailyVWAP)
+            if is_buy and not na(dailyUpperBand)
+                room = (dailyUpperBand - close) / atr_value
+                min_room := math.min(min_room, room)
+            else if not is_buy and not na(dailyLowerBand)
+                room = (close - dailyLowerBand) / atr_value
+                min_room := math.min(min_room, room)
+        if enable_key_levels and array.size(keyLevels) > 0
+            for i = 0 to math.min(9, array.size(keyLevels) - 1)
+                level = array.get(keyLevels, i)
+                if is_buy and level.level > close
+                    room = (level.level - close) / atr_value
+                    min_room := math.min(min_room, room)
+                else if not is_buy and level.level < close
+                    room = (close - level.level) / atr_value
+                    min_room := math.min(min_room, room)
+        min_room
+
+// P1: Enhanced Zone Detection with Mitigation Mode
+isInOrderBlock(is_buy) =>
+    arr = is_buy ? bullishOBArray : bearishOBArray
+    if array.size(arr) == 0
+        [false, 0.0, -1]
+    else
+        best_score = 0.0
+        best_index = -1
+        in_zone = false
+        arr_size = array.size(arr)
+        i = arr_size - 1
+        limit_idx = math.max(0, arr_size - zone_check_limit)
+        dynamic_min_age_val = getDynamicMinAge()
+        
+        while i >= limit_idx
+            ob = array.get(arr, i)
+            zone_age = bar_index - ob.startBar
+            
+            if zone_age >= dynamic_min_age_val
+                in_zone_check = if enable_mitigation_mode
+                    zone_range = ob.top - ob.bottom
+                    if is_buy
+                        mitigation_level = ob.bottom + (zone_range * mitigation_threshold)
+                        low <= ob.top and close >= mitigation_level
+                    else
+                        mitigation_level = ob.top - (zone_range * mitigation_threshold)
+                        high >= ob.bottom and close <= mitigation_level
+                else
+                    if is_buy
+                        low <= ob.top and high >= ob.bottom
+                    else
+                        high >= ob.bottom and low <= ob.top
+                
+                if in_zone_check
+                    in_zone := true
+                    if ob.score > best_score
+                        best_score := ob.score
+                        best_index := i
+            i := i - 1
+        [in_zone, best_score, best_index]
+
+isInFVG(is_buy) =>
+    arr = is_buy ? bullishFVGArray : bearishFVGArray
+    if array.size(arr) == 0
+        [false, 0.0, -1]
+    else
+        best_score = 0.0
+        best_index = -1
+        in_zone = false
+        arr_size = array.size(arr)
+        i = arr_size - 1
+        limit_idx = math.max(0, arr_size - zone_check_limit)
+        dynamic_min_age_val = getDynamicMinAge()
+        
+        while i >= limit_idx
+            fvg = array.get(arr, i)
+            zone_age = bar_index - fvg.startBar
+            
+            if zone_age >= dynamic_min_age_val
+                in_zone_check = if enable_mitigation_mode
+                    zone_range = fvg.top - fvg.bottom
+                    if is_buy
+                        mitigation_level = fvg.bottom + (zone_range * mitigation_threshold)
+                        low <= fvg.top and close >= mitigation_level
+                    else
+                        mitigation_level = fvg.top - (zone_range * mitigation_threshold)
+                        high >= fvg.bottom and close <= mitigation_level
+                else
+                    if is_buy
+                        low <= fvg.top and high >= fvg.bottom
+                    else
+                        high >= fvg.bottom and low <= fvg.top
+                
+                if in_zone_check
+                    in_zone := true
+                    if fvg.score > best_score
+                        best_score := fvg.score
+                        best_index := i
+            i := i - 1
+        [in_zone, best_score, best_index]
+
+// P2: Dynamic Opposite Zone Distance
+getOppositeZoneDistance(is_buy) =>
+    min_distance = 999.0
+    opposite_ob_arr = is_buy ? bearishOBArray : bullishOBArray
+    opposite_fvg_arr = is_buy ? bearishFVGArray : bullishFVGArray
+    
+    distance_multiplier = if enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge
+        if (is_buy and lastBOSDirection == 1) or (not is_buy and lastBOSDirection == -1)
+            dynamic_reduction_factor
+        else
+            1.0
+    else
+        1.0
+    
+    if array.size(opposite_ob_arr) > 0
+        for i = 0 to math.min(3, array.size(opposite_ob_arr) - 1)
+            ob = array.get(opposite_ob_arr, i)
+            raw_distance = if is_buy
+                math.abs(close - ob.bottom) / atr_value
+            else
+                math.abs(close - ob.top) / atr_value
+            
+            weighted_distance = raw_distance * ob_opposition_weight * distance_multiplier
+            min_distance := math.min(min_distance, weighted_distance)
+    
+    if array.size(opposite_fvg_arr) > 0
+        for i = 0 to math.min(3, array.size(opposite_fvg_arr) - 1)
+            fvg = array.get(opposite_fvg_arr, i)
+            raw_distance = if is_buy
+                math.abs(close - fvg.bottom) / atr_value
+            else
+                math.abs(close - fvg.top) / atr_value
+            
+            weighted_distance = raw_distance * fvg_opposition_weight * distance_multiplier
+            min_distance := math.min(min_distance, weighted_distance)
+    
+    min_distance
+
+getPerformanceMetrics() =>
+    total_objects_pm = array.size(bullishOBArray) + array.size(bearishOBArray) + 
+                   array.size(bullishFVGArray) + array.size(bearishFVGArray)
+    memory_pressure_pm = total_objects_pm / (maxActiveOB * 2 + maxActiveFVG * 2)
+    complexity_score_pm = total_objects_pm * 2 + array.size(keyLevels)
+    [memory_pressure_pm, complexity_score_pm]
+
+getOptimalCleanupFreq() =>
+    [memory_pressure_ocf, complexity_ocf] = getPerformanceMetrics()
+    base_freq = cleanup_frequency
+    if memory_pressure_ocf > 0.9
+        math.max(3, base_freq - 3)
+    else if memory_pressure_ocf > 0.7
+        math.max(4, base_freq - 2)
+    else if memory_pressure_ocf > 0.5
+        math.max(5, base_freq - 1)
+    else if memory_pressure_ocf < 0.3
+        math.min(15, base_freq + 2)
+    else
+        base_freq
+
+getSmartCooldownBase(tier_duration) =>
+    base = tier_duration
+    if signalProfile == "Aggressive"
+        base := math.max(1, base - 1)
+    else if signalProfile == "Conservative"
+        base := base + 1
+    if adaptiveCooldown
+        vol_mult_cd = atr_value / ta.sma(atr_value, 20)
+        sess_mult = sessionText() == "London/NY" ? 0.7 : 1.0
+        math.max(1, math.round(base * vol_mult_cd * sess_mult))
+    else
+        base
+
+cooldownPremium = getSmartCooldownBase(3)
+cooldownStandard = getSmartCooldownBase(2)
+cooldownQuick = getSmartCooldownBase(1)
+cooldownEmergency = 2
+
+cleanupOrderBlocks(arr) =>
+    if array.size(arr) > 0
+        to_remove = array.new<int>()
+        for i = 0 to array.size(arr) - 1
+            ob = array.get(arr, i)
+            age = bar_index - ob.startBar
+            should_remove = age > 100
+            if removeTestedBoxes
+                should_remove := should_remove or (ob.tested and ob.retests > 3)
+            if should_remove
+                array.push(to_remove, i)
+        if array.size(to_remove) > 0
+            j = array.size(to_remove) - 1
+            while j >= 0
+                idx = array.get(to_remove, j)
+                if idx < array.size(arr)
+                    ob = array.get(arr, idx)
+                    if not na(ob.boxObj)
+                        box.delete(ob.boxObj)
+                    if not na(ob.labelObj)
+                        label.delete(ob.labelObj)
+                    array.remove(arr, idx)
+                j := j - 1
+
+cleanupFVGs(arr) =>
+    if array.size(arr) > 0
+        to_remove = array.new<int>()
+        for i = 0 to array.size(arr) - 1
+            fvg = array.get(arr, i)
+            age = bar_index - fvg.startBar
+            should_remove = age > 50
+            if removeTestedBoxes
+                should_remove := should_remove or (fvg.tested and fvg.retests > 2)
+            if should_remove
+                array.push(to_remove, i)
+        if array.size(to_remove) > 0
+            j = array.size(to_remove) - 1
+            while j >= 0
+                idx = array.get(to_remove, j)
+                if idx < array.size(arr)
+                    fvg = array.get(arr, idx)
+                    if not na(fvg.boxObj)
+                        box.delete(fvg.boxObj)
+                    if not na(fvg.labelObj)
+                        label.delete(fvg.labelObj)
+                    array.remove(arr, idx)
+                j := j - 1
+
+// KEY LEVELS UPDATE
+if enable_key_levels
+    if is_new_day
+        prev_day_high = request.security(syminfo.tickerid, "D", high)[1]
+        prev_day_low = request.security(syminfo.tickerid, "D", low)[1]
+        array.push(keyLevels, KeyLevel.new(prev_day_high, "D", "high", 0.15, bar_index))
+        array.push(keyLevels, KeyLevel.new(prev_day_low, "D", "low", 0.15, bar_index))
+        if array.size(keyLevels) > 0
+            bars_in_3_days = timeframe.isintraday ? (1440 / timeframe.multiplier) * 3 : 3
+            to_remove_indices = array.new<int>()
+            for i = 0 to array.size(keyLevels) - 1
+                level = array.get(keyLevels, i)
+                if level.timeframe == "D" and (bar_index - level.creation_bar > bars_in_3_days)
+                    array.push(to_remove_indices, i)
+            if array.size(to_remove_indices) > 0
+                j = array.size(to_remove_indices) - 1
+                while j >= 0
+                    array.remove(keyLevels, array.get(to_remove_indices, j))
+                    j := j - 1
+    if timeframe.change("W")
+        prev_week_high = request.security(syminfo.tickerid, "W", high)[1]
+        prev_week_low = request.security(syminfo.tickerid, "W", low)[1]
+        array.push(keyLevels, KeyLevel.new(prev_week_high, "W", "high", 0.20, bar_index))
+        array.push(keyLevels, KeyLevel.new(prev_week_low, "W", "low", 0.20, bar_index))
+    if timeframe.change("M")
+        prev_month_high = request.security(syminfo.tickerid, "M", high)[1]
+        prev_month_low = request.security(syminfo.tickerid, "M", low)[1]
+        array.push(keyLevels, KeyLevel.new(prev_month_high, "M", "high", 0.25, bar_index))
+        array.push(keyLevels, KeyLevel.new(prev_month_low, "M", "low", 0.25, bar_index))
+    while array.size(keyLevels) > 15
+        array.shift(keyLevels)
+
+// ZONE TESTING AND CLEANUP
+markZonesTested() =>
+    if array.size(bullishOBArray) > 0
+        for i = 0 to array.size(bullishOBArray) - 1
+            ob = array.get(bullishOBArray, i)
+            if low <= ob.top and high >= ob.bottom
+                if not ob.tested
+                    ob.tested := true
+                    ob.retests := 1
+                else
+                    ob.retests += 1
+                array.set(bullishOBArray, i, ob)
+    if array.size(bearishOBArray) > 0
+        for i = 0 to array.size(bearishOBArray) - 1
+            ob = array.get(bearishOBArray, i)
+            if high >= ob.bottom and low <= ob.top
+                if not ob.tested
+                    ob.tested := true
+                    ob.retests := 1
+                else
+                    ob.retests += 1
+                array.set(bearishOBArray, i, ob)
+    if array.size(bullishFVGArray) > 0
+        for i = 0 to array.size(bullishFVGArray) - 1
+            fvg = array.get(bullishFVGArray, i)
+            if low <= fvg.top and high >= fvg.bottom
+                if not fvg.tested
+                    fvg.tested := true
+                    fvg.retests := 1
+                else
+                    fvg.retests += 1
+                array.set(bullishFVGArray, i, fvg)
+    if array.size(bearishFVGArray) > 0
+        for i = 0 to array.size(bearishFVGArray) - 1
+            fvg = array.get(bearishFVGArray, i)
+            if high >= fvg.bottom and low <= fvg.top
+                if not fvg.tested
+                    fvg.tested := true
+                    fvg.retests := 1
+                else
+                    fvg.retests += 1
+                array.set(bearishFVGArray, i, fvg)
+
+markZonesTested()
+
+// Adaptive cleanup system
+if enable_fast_mode
+    optimal_freq = getOptimalCleanupFreq()
+    if bar_index - last_cleanup_bar >= optimal_freq
+        last_cleanup_bar := bar_index
+        cleanupOrderBlocks(bullishOBArray)
+        cleanupOrderBlocks(bearishOBArray)
+        cleanupFVGs(bullishFVGArray)
+        cleanupFVGs(bearishFVGArray)
+
+// Emergency cleanup
+total_objects = array.size(bullishOBArray) + array.size(bearishOBArray) + 
+               array.size(bullishFVGArray) + array.size(bearishFVGArray)
+
+if total_objects > max_objects_hard_limit
+    while array.size(bullishOBArray) > maxActiveOB / 2
+        ob = array.shift(bullishOBArray)
+        if not na(ob.boxObj)
+            box.delete(ob.boxObj)
+        if not na(ob.labelObj)
+            label.delete(ob.labelObj)
+    while array.size(bearishOBArray) > maxActiveOB / 2
+        ob = array.shift(bearishOBArray)
+        if not na(ob.boxObj)
+            box.delete(ob.boxObj)
+        if not na(ob.labelObj)
+            label.delete(ob.labelObj)
+    while array.size(bullishFVGArray) > maxActiveFVG / 2
+        fvg = array.shift(bullishFVGArray)
+        if not na(fvg.boxObj)
+            box.delete(fvg.boxObj)
+        if not na(fvg.labelObj)
+            label.delete(fvg.labelObj)
+    while array.size(bearishFVGArray) > maxActiveFVG / 2
+        fvg = array.shift(bearishFVGArray)
+        if not na(fvg.boxObj)
+            box.delete(fvg.boxObj)
+        if not na(fvg.labelObj)
+            label.delete(fvg.labelObj)
+
+// Maintain limits
+while array.size(bullishOBArray) > maxActiveOB
+    ob = array.shift(bullishOBArray)
+    if not na(ob.boxObj)
+        box.delete(ob.boxObj)
+    if not na(ob.labelObj)
+        label.delete(ob.labelObj)
+
+while array.size(bearishOBArray) > maxActiveOB
+    ob = array.shift(bearishOBArray)
+    if not na(ob.boxObj)
+        box.delete(ob.boxObj)
+    if not na(ob.labelObj)
+        label.delete(ob.labelObj)
+
+while array.size(bullishFVGArray) > maxActiveFVG
+    fvg = array.shift(bullishFVGArray)
+    if not na(fvg.boxObj)
+        box.delete(fvg.boxObj)
+    if not na(fvg.labelObj)
+        label.delete(fvg.labelObj)
+
+while array.size(bearishFVGArray) > maxActiveFVG
+    fvg = array.shift(bearishFVGArray)
+    if not na(fvg.boxObj)
+        box.delete(fvg.boxObj)
+    if not na(fvg.labelObj)
+        label.delete(fvg.labelObj)
+
+// ZONE CREATION
+fvg_min_size_val = atr_value * fvgMinSize / 100
+ob_min_size_val = atr_value * obMinSize / 100
+bullishFVG_condition = low > high[2] and (low - high[2]) > fvg_min_size_val
+bearishFVG_condition = high < low[2] and (low[2] - high) > fvg_min_size_val
+
+var label newLabel = na
+valid_bar_for_creation = not onCloseOnly or barstate.isconfirmed
+
+if valid_bar_for_creation
+    if close[1] < open[1] and close > high[1] and volume[1] > volume_avg[1] * 0.8 and (high[1] - low[1]) > ob_min_size_val
+        score = getAdvancedZoneScore(1)
+        newBox = showOrderBlocks ? box.new(bar_index[1], high[1], bar_index, low[1], bgcolor=bullishOBColor, border_width=0, extend=extend.right) : na
+        labelText = "OB|" + str.tostring(score, "#.#")
+        newLabel := showOrderBlocks ? label.new(bar_index, (high[1] + low[1]) / 2, labelText, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=boxLabelColor, size=size.small) : na
+        array.push(bullishOBArray, OrderBlock.new(newBox, newLabel, high[1], low[1], bar_index[1], false, score, 0))
+    
+    if close[1] > open[1] and close < low[1] and volume[1] > volume_avg[1] * 0.8 and (high[1] - low[1]) > ob_min_size_val
+        score = getAdvancedZoneScore(1)
+        newBox = showOrderBlocks ? box.new(bar_index[1], high[1], bar_index, low[1], bgcolor=bearishOBColor, border_width=0, extend=extend.right) : na
+        labelText = "OB|" + str.tostring(score, "#.#")
+        newLabel := showOrderBlocks ? label.new(bar_index, (high[1] + low[1]) / 2, labelText, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=boxLabelColor, size=size.small) : na
+        array.push(bearishOBArray, OrderBlock.new(newBox, newLabel, high[1], low[1], bar_index[1], false, score, 0))
+
+if valid_bar_for_creation
+    if bullishFVG_condition
+        score = getAdvancedZoneScore(1)
+        newBox = showFVG ? box.new(bar_index[1], high[2], bar_index, low, bgcolor=bullishFVGColor, border_width=0, extend=extend.right) : na
+        labelText = "FVG|" + str.tostring(score, "#.#")
+        newLabel := showFVG ? label.new(bar_index, (high[2] + low) / 2, labelText, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=boxLabelColor, size=size.small) : na
+        array.push(bullishFVGArray, FairValueGap.new(newBox, newLabel, low, high[2], bar_index[1], false, score, 0))
+    
+    if bearishFVG_condition
+        score = getAdvancedZoneScore(1)
+        newBox = showFVG ? box.new(bar_index[1], low[2], bar_index, high, bgcolor=bearishFVGColor, border_width=0, extend=extend.right) : na
+        labelText = "FVG|" + str.tostring(score, "#.#")
+        newLabel := showFVG ? label.new(bar_index, (low[2] + high) / 2, labelText, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, textcolor=boxLabelColor, size=size.small) : na
+        array.push(bearishFVGArray, FairValueGap.new(newBox, newLabel, low[2], high, bar_index[1], false, score, 0))
+
+// ULTIMATE SIGNAL GENERATION v8.0
+getUltimateSignalStrength(is_buy) =>
+    zone_strength = 0.0
+    zone_score = 0.0
+    in_zone = false
+    
+    [in_ob, ob_score, ob_index] = isInOrderBlock(is_buy)
+    if in_ob and ob_score > 0
+        ob_contribution = (ob_score / 5.0) * zone_quality_weight
+        if ob_index >= 0 and useZoneRetests
+            ob = array.get(is_buy ? bullishOBArray : bearishOBArray, ob_index)
+            if ob.tested and ob.retests <= 2
+                ob_contribution *= 1.35
+            else if not ob.tested
+                ob_contribution *= 1.15
+        zone_strength += ob_contribution
+        zone_score := ob_score
+        in_zone := true
+    
+    [in_fvg, fvg_score, fvg_index] = isInFVG(is_buy)
+    if in_fvg and fvg_score > 0
+        fvg_contribution = (fvg_score / 5.0) * zone_quality_weight * 0.85
+        if fvg_index >= 0 and useZoneRetests
+            fvg = array.get(is_buy ? bullishFVGArray : bearishFVGArray, fvg_index)
+            if fvg.tested and fvg.retests <= 1
+                fvg_contribution *= 1.25
+        zone_strength += fvg_contribution
+        if not in_zone
+            zone_score := fvg_score
+            in_zone := true
+    
+    [near_level, level_strength] = isNearKeyLevel(close)
+    key_levels_component = near_level ? level_strength * key_levels_weight : 0.0
+    
+    technical_strength_raw = 0.0
+    
+    mfi_strength = 0.0
+    if is_buy and mfi_value < mfi_oversold and close > close[1]
+        mfi_strength += 0.20
+    else if not is_buy and mfi_value > mfi_overbought and close < close[1]
+        mfi_strength += 0.20
+    
+    if is_buy and mfi_rising_3 and price_falling
+        mfi_strength += 0.15
+    else if not is_buy and mfi_falling_3 and price_rising
+        mfi_strength += 0.15
+    
+    macd_strength = 0.0
+    if is_buy and macd_crossover
+        macd_strength += 0.15
+    else if not is_buy and macd_crossunder
+        macd_strength += 0.15
+    
+    micro_trend_strength = 0.0
+    if useMicroTrend
+        if is_buy and microTrendBullish
+            micro_trend_strength += 0.18
+        else if not is_buy and microTrendBearish
+            micro_trend_strength += 0.18
+    
+    technical_strength = (mfi_strength + macd_strength + micro_trend_strength) * technical_weight
+    
+    context_strength_raw = 0.0
+    
+    // P3: Rising ADX Enhancement
+    if enable_rising_adx and risingADX
+        context_strength_raw += 0.12
+    else if isTrending
+        context_strength_raw += 0.08
+    
+    session = sessionText()
+    if session == "London" or session == "NY" or session == "London/NY" or session == "Asia"
+        context_strength_raw += 0.08
+        
+    if is_buy and close <= dailyLowerBand
+        context_strength_raw += 0.08
+    else if not is_buy and close >= dailyUpperBand
+        context_strength_raw += 0.08
+        
+    if volumeSpike
+        context_strength_raw += 0.06
+    
+    if is_buy and bullishDivergence
+        context_strength_raw += 0.08
+    else if not is_buy and bearishDivergence
+        context_strength_raw += 0.08
+        
+    if useEMAFilter
+        if is_buy and emaFast > emaSlow
+            context_strength_raw += 0.07
+        else if not is_buy and emaFast < emaSlow
+            context_strength_raw += 0.07
+    
+    if enableReEntry and liquiditySweep and (in_ob or in_fvg)
+        context_strength_raw += reEntryBonus
+    
+    if useFreshBOS and lastBOSBar > 0
+        bos_age = bar_index - lastBOSBar
+        if bos_age <= bosMaxAge
+            if (is_buy and lastBOSDirection == 1) or (not is_buy and lastBOSDirection == -1)
+                context_strength_raw += 0.12
+    
+    if useZonePosition and in_ob and ob_index >= 0
+        if enable_mitigation_mode
+            context_strength_raw += 0.08
+        else
+            ob = array.get(is_buy ? bullishOBArray : bearishOBArray, ob_index)
+            zone_range = ob.top - ob.bottom
+            threshold_level = if is_buy
+                ob.bottom + (zone_range * zonePositionThreshold)
+            else
+                ob.top - (zone_range * zonePositionThreshold)
+            
+            correct_position = if is_buy
+                close >= threshold_level
+            else
+                close <= threshold_level
+            
+            if correct_position
+                context_strength_raw += 0.08
+    
+    if useVolumeDirection
+        if is_buy and buyVolumeRatio > 0.6
+            context_strength_raw += 0.06
+        else if not is_buy and sellVolumeRatio > 0.6
+            context_strength_raw += 0.06
+    
+    context_strength_raw += getCryptoKillZoneBonus()
+    context_strength = context_strength_raw * context_weight
+    
+    crypto_strength_raw = 0.0
+    if oiBullish and is_buy
+        crypto_strength_raw += 0.08
+    else if oiBearish and not is_buy
+        crypto_strength_raw += 0.08
+    else if oiRising
+        crypto_strength_raw += 0.06
+    
+    if enableBTCCorrelation and math.abs(btcCorrelation) > btcCorrelationThreshold
+        if is_buy and btcTrend > 0 and btcCorrelation > 0
+            crypto_strength_raw += 0.15
+        else if not is_buy and btcTrend < 0 and btcCorrelation > 0
+            crypto_strength_raw += 0.15
+        else if btcCorrelation > 0.65
+            crypto_strength_raw += 0.08
+    
+    if marketRegime == "FEAR" and is_buy
+        crypto_strength_raw += 0.12
+    else if marketRegime == "GREED" and not is_buy
+        crypto_strength_raw += 0.12
+    else if marketRegime == "NEUTRAL"
+        crypto_strength_raw += 0.04
+    else if marketRegime == "LOW_VOL"
+        crypto_strength_raw -= 0.05
+        
+    crypto_strength = crypto_strength_raw * crypto_weight
+    
+    total_strength = zone_strength + key_levels_component + technical_strength + context_strength + crypto_strength
+    
+    is_strong_zone = in_zone and zone_score >= 3
+    if is_strong_zone and near_level
+        total_strength *= 1.5
+    else if context_strength > (0.10 * context_weight) and technical_strength > (0.15 * technical_weight)
+        total_strength *= 1.25
+    else 
+        categories_active = 0
+        if zone_strength > 0.05
+            categories_active += 1
+        if key_levels_component > 0.03
+            categories_active += 1
+        if technical_strength > 0.08
+            categories_active += 1
+        if context_strength > 0.08
+            categories_active += 1
+        if categories_active >= 3
+            total_strength *= 1.15
+
+    if useHTFConfirmation
+        if htfMode == "Strict"
+            if is_buy and htfBullish
+                total_strength *= 1.15
+            else if not is_buy and htfBearish
+                total_strength *= 1.15
+            else
+                total_strength *= 0.85
+        else if htfMode == "Soft"
+            if is_buy and htfBullish
+                total_strength *= 1.08
+            else if not is_buy and htfBearish
+                total_strength *= 1.08
+            else
+                total_strength *= 0.92
+    
+    // Enhanced Extreme Conditions with Emergency Whitelist
+    if enable_extreme_filter
+        emergency_whitelist = (emergency_bull_conditions and is_buy) or (emergency_bear_conditions and not is_buy)
+        if emergency_whitelist
+            total_strength := total_strength * math.max(0.85, 1.0 - confidence_penalty * 0.5)
+        else
+            total_strength := total_strength * (1.0 - confidence_penalty)
+            
+            if market_condition == "EXTREME_MOVE"
+                total_strength := total_strength * 0.5
+            else if market_condition == "MARKET_STRESS"
+                total_strength := total_strength * 0.3
+    
+    math.min(total_strength, 1.0)
+
+// 🚨 EMERGENCY SIGNAL STRENGTH
+getEmergencySignalStrength(is_buy) =>
+    if not enable_emergency_mode
+        0.0
+    else
+        base_strength = emergency_signal_strength
+        
+        [near_level_emergency, _] = isNearKeyLevel(close)
+        if near_level_emergency
+            base_strength *= 1.3
+        
+        if volume > volume_avg * (emergency_volume_threshold * 1.5)
+            base_strength *= 1.2
+        
+        if getCryptoKillZoneBonus() > 0.08
+            base_strength *= 1.15
+        
+        math.min(base_strength, 1.0)
+
+// SIGNAL LOGIC
+buySignalStrength = getUltimateSignalStrength(true)
+sellSignalStrength = getUltimateSignalStrength(false)
+
+// Emergency Signal Strengths
+emergencyBuyStrength = emergency_bull_conditions ? getEmergencySignalStrength(true) : 0.0
+emergencySellStrength = emergency_bear_conditions ? getEmergencySignalStrength(false) : 0.0
+
+[currentPremiumThreshold, currentStandardThreshold, currentQuickThreshold] = getAdaptiveThresholds()
+profile_room_mult = signalProfile == "Aggressive" ? 0.85 : signalProfile == "Conservative" ? 1.15 : 1.00
+profile_adx_mult = signalProfile == "Aggressive" ? 0.75 : signalProfile == "Conservative" ? 1.10 : 1.00
+
+classifySignal(strength) =>
+    string result = "None"
+    if strength >= currentPremiumThreshold
+        result := "Premium"
+    else if strength >= currentStandardThreshold
+        result := "Standard"
+    else if strength >= currentQuickThreshold
+        result := "Quick"
+    result
+
+buySignalTier = classifySignal(buySignalStrength)
+sellSignalTier = classifySignal(sellSignalStrength)
+
+buySignal = false
+sellSignal = false
+emergencyBuySignal = false
+emergencySellSignal = false
+var string signalTier = "None"
+
+valid_bar_for_signal = not onCloseOnly or barstate.isconfirmed
+session_ok = inSession()
+
+adx_threshold_adjusted = adxThreshold * profile_adx_mult
+adx_ok = if adxMode == "Hard"
+    adx > adx_threshold_adjusted
+else if adxMode == "Soft"
+    adx > adx_threshold_adjusted * 0.8 or risingADX
+else
+    true
+
+req_room = minRoomToTarget * profile_room_mult
+room_ok_buy = not enableRoomFilter or getRoomToTarget(true) >= req_room
+room_ok_sell = not enableRoomFilter or getRoomToTarget(false) >= req_room
+
+btc_hard_filter_buy = true
+btc_hard_filter_sell = true
+if enableBTCCorrelation and btcHardFilter and math.abs(btcCorrelation) > btcCorrelationThreshold
+    if btcTrend < 0
+        btc_hard_filter_buy := false
+    if btcTrend > 0
+        btc_hard_filter_sell := false
+
+opposite_zone_ok_buy = not useOppositeZoneFilter or getOppositeZoneDistance(true) >= minOppositeDistance
+opposite_zone_ok_sell = not useOppositeZoneFilter or getOppositeZoneDistance(false) >= minOppositeDistance
+
+// Debug Variables Assignment (GLOBAL SCOPE)
+missedBuyCondition := false
+missedSellCondition := false
+emergencyBullCondition := false
+emergencyBearCondition := false
+
+if valid_bar_for_signal
+    // 🚨 EMERGENCY SIGNALS FIRST (Bypass Most Filters)
+    if emergency_bull_conditions and session_ok
+        if (bar_index - lastSignalBar) >= cooldownEmergency
+            emergencyBuySignal := true
+            signalTier := "Emergency"
+            emergencyBullCondition := true
+    
+    if emergency_bear_conditions and session_ok and not emergencyBuySignal
+        if (bar_index - lastSignalBar) >= cooldownEmergency
+            emergencySellSignal := true
+            signalTier := "Emergency"
+            emergencyBearCondition := true
+    
+    // REGULAR SIGNALS (only if no emergency signal)
+    if not emergencyBuySignal and not emergencySellSignal
+        if buySignalTier != "None" and btc_hard_filter_buy and opposite_zone_ok_buy
+            cooldown = buySignalTier == "Premium" ? cooldownPremium : buySignalTier == "Standard" ? cooldownStandard : cooldownQuick
+            signal_gap = bar_index - lastSignalBar
+            tier_gap = buySignalTier == "Premium" ? bar_index - lastPremiumSignal : buySignalTier == "Standard" ? bar_index - lastStandardSignal : signal_gap
+            
+            if signal_gap >= cooldown and tier_gap >= cooldown and session_ok and adx_ok and room_ok_buy
+                buySignal := true
+                signalTier := buySignalTier
+
+        if sellSignalTier != "None" and not buySignal and btc_hard_filter_sell and opposite_zone_ok_sell
+            cooldown = sellSignalTier == "Premium" ? cooldownPremium : sellSignalTier == "Standard" ? cooldownStandard : cooldownQuick
+            signal_gap = bar_index - lastSignalBar
+            tier_gap = sellSignalTier == "Premium" ? bar_index - lastPremiumSignal : sellSignalTier == "Standard" ? bar_index - lastStandardSignal : signal_gap
+            
+            if signal_gap >= cooldown and tier_gap >= cooldown and session_ok and adx_ok and room_ok_sell
+                sellSignal := true
+                signalTier := sellSignalTier
+
+    // Missed signals detection - TYLKO Z WYSOKIEJ JAKOŚCI KONTEKSTEM
+    if showMissedSignals and barstate.isconfirmed
+        [in_ob_buy, ob_score_buy, _] = isInOrderBlock(true)
+        [in_fvg_buy, fvg_score_buy, _] = isInFVG(true)
+        [in_ob_sell, ob_score_sell, _] = isInOrderBlock(false)
+        [in_fvg_sell, fvg_score_sell, _] = isInFVG(false)
+        [near_level, level_strength] = isNearKeyLevel(close)
+        
+        // NAPRAWIONE WYRAŻENIA LOGICZNE - Linia 1345
+        quality_context_buy = ((in_ob_buy and ob_score_buy >= 3.0) or 
+                              (in_fvg_buy and fvg_score_buy >= 3.0) or 
+                              (near_level and level_strength >= 0.18) or
+                              (risingADX and microTrendBullish and volumeSpike))
+        
+        quality_context_sell = ((in_ob_sell and ob_score_sell >= 3.0) or 
+                               (in_fvg_sell and fvg_score_sell >= 3.0) or 
+                               (near_level and level_strength >= 0.18) or
+                               (risingADX and microTrendBearish and volumeSpike))
+        
+        smart_missed_threshold = getSmartMissedThreshold()
+        
+        if buySignalStrength >= smart_missed_threshold and buySignalStrength < currentQuickThreshold and quality_context_buy and session_ok
+            missedBuyCondition := true
+            
+        if sellSignalStrength >= smart_missed_threshold and sellSignalStrength < currentQuickThreshold and quality_context_sell and session_ok
+            missedSellCondition := true
+
+if (buySignal or sellSignal or emergencyBuySignal or emergencySellSignal) and barstate.isconfirmed
+    lastSignalBar := bar_index
+    if signalTier == "Premium"
+        lastPremiumSignal := bar_index
+    else if signalTier == "Standard"
+        lastStandardSignal := bar_index
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STRATEGY LOGIC
+// ═══════════════════════════════════════════════════════════════════════════════
+
+if runAsStrategy and barstate.isconfirmed
+    tier_ok = tierFilter == "All" or 
+              (tierFilter == "Premium only" and signalTier == "Premium") or
+              (tierFilter == "Standard only" and signalTier == "Standard") or
+              (tierFilter == "Quick only" and signalTier == "Quick") or
+              (tierFilter == "Emergency only" and signalTier == "Emergency")
+    
+    flat = strategy.position_size == 0
+    
+    // LONG ENTRIES
+    if (buySignal or emergencyBuySignal) and tier_ok and flat
+        tier_mult = if signalTier == "Premium"
+            1.0
+        else if signalTier == "Standard"
+            1.1
+        else if signalTier == "Emergency"
+            0.9
+        else
+            1.2
+            
+        sl_distance = atr_value * atrSLMultiplier * tier_mult
+        buffer = close * executionBuffer / 100
+        stopLoss = low - sl_distance - buffer
+        risk_per_unit = close - stopLoss
+        
+        if risk_per_unit > 0
+            risk_amount = strategy.equity * riskPerTrade / 100
+            position_size = risk_amount / risk_per_unit
+            max_position = strategy.equity * maxPositionSize / 100 / close
+            position_size := math.min(position_size, max_position)
+            
+            tp1 = close + (risk_per_unit * tp1RR) - buffer
+            tp2 = close + (risk_per_unit * tp2RR) - buffer
+            tp3 = close + (risk_per_unit * tp3RR) - buffer
+            mainTP = useMultiTP ? tp1 : close + (risk_per_unit * riskRewardRatio) - buffer
+            
+            entry_id = "L_" + signalTier
+            comment_strength = emergencyBuySignal ? str.tostring(emergencyBuyStrength * 100, "#") : str.tostring(buySignalStrength * 100, "#")
+            strategy.entry(entry_id, strategy.long, qty=position_size, 
+                          comment="LONG " + signalTier + " " + comment_strength + "%")
+            
+            if useMultiTP
+                strategy.exit("L_TP1", from_entry=entry_id, qty_percent=50, 
+                             limit=tp1, stop=stopLoss, comment="TP1")
+                strategy.exit("L_TP2", from_entry=entry_id, qty_percent=30, 
+                             limit=tp2, stop=stopLoss, comment="TP2") 
+                strategy.exit("L_TP3", from_entry=entry_id, qty_percent=20, 
+                             limit=tp3, stop=stopLoss, comment="TP3")
+            else
+                strategy.exit("L_EXIT", from_entry=entry_id, 
+                             limit=mainTP, stop=stopLoss, comment="SL/TP")
+    
+     // SHORT ENTRIES
+    if (sellSignal or emergencySellSignal) and tier_ok and flat
+        tier_mult = if signalTier == "Premium"
+            1.0
+        else if signalTier == "Standard"
+            1.1
+        else if signalTier == "Emergency"
+            0.9
+        else
+            1.2
+            
+        sl_distance = atr_value * atrSLMultiplier * tier_mult
+        buffer = close * executionBuffer / 100
+        stopLoss = high + sl_distance + buffer
+        risk_per_unit = stopLoss - close
+        
+        if risk_per_unit > 0
+            risk_amount = strategy.equity * riskPerTrade / 100
+            position_size = risk_amount / risk_per_unit
+            max_position = strategy.equity * maxPositionSize / 100 / close
+            position_size := math.min(position_size, max_position)
+            
+            tp1 = close - (risk_per_unit * tp1RR) + buffer
+            tp2 = close - (risk_per_unit * tp2RR) + buffer
+            tp3 = close - (risk_per_unit * tp3RR) + buffer  
+            mainTP = useMultiTP ? tp1 : close - (risk_per_unit * riskRewardRatio) + buffer
+            
+            entry_id = "S_" + signalTier
+            comment_strength = emergencySellSignal ? str.tostring(emergencySellStrength * 100, "#") : str.tostring(sellSignalStrength * 100, "#")
+            strategy.entry(entry_id, strategy.short, qty=position_size, 
+                          comment="SHORT " + signalTier + " " + comment_strength + "%")
+            
+            if useMultiTP
+                strategy.exit("S_TP1", from_entry=entry_id, qty_percent=50,
+                             limit=tp1, stop=stopLoss, comment="TP1")
+                strategy.exit("S_TP2", from_entry=entry_id, qty_percent=30,
+                             limit=tp2, stop=stopLoss, comment="TP2")
+                strategy.exit("S_TP3", from_entry=entry_id, qty_percent=20,
+                             limit=tp3, stop=stopLoss, comment="TP3")
+            else
+                strategy.exit("S_EXIT", from_entry=entry_id,
+                             limit=mainTP, stop=stopLoss, comment="SL/TP")
+
+// DEBUG TOOLS
+if showSignalStrength and barstate.isconfirmed
+    if buySignalStrength > 0.15 or sellSignalStrength > 0.15 or emergencyBuyStrength > 0 or emergencySellStrength > 0
+        strength_text = "B:" + str.tostring(buySignalStrength * 100, "#") + "% S:" + str.tostring(sellSignalStrength * 100, "#") + "%"
+        if emergencyBuyStrength > 0 or emergencySellStrength > 0
+            strength_text += " E:" + str.tostring(math.max(emergencyBuyStrength, emergencySellStrength) * 100, "#") + "%"
+        label.new(bar_index, high + atr_value * 0.5, strength_text, 
+                 style=label.style_none, textcolor=color.white, size=size.tiny)
+
+if showZoneInfo and barstate.isconfirmed
+    [in_ob_buy, ob_score_buy, _] = isInOrderBlock(true)
+    [in_fvg_buy, fvg_score_buy, _] = isInFVG(true)
+    if in_ob_buy or in_fvg_buy
+        zone_text = "OB:" + (in_ob_buy ? str.tostring(ob_score_buy, "#.#") : "0") + 
+                   " FVG:" + (in_fvg_buy ? str.tostring(fvg_score_buy, "#.#") : "0")
+        label.new(bar_index, low - atr_value * 0.5, zone_text,
+                 style=label.style_none, textcolor=color.yellow, size=size.tiny)
+
+// PLOTTING & VISUALS
+plotshape(buySignal and signalTier == "Premium", "Buy Premium", shape.triangleup, location.belowbar, premiumSignalColor, size=size.normal)
+plotshape(sellSignal and signalTier == "Premium", "Sell Premium", shape.triangledown, location.abovebar, premiumSignalColor, size=size.normal)
+plotshape(buySignal and signalTier == "Standard", "Buy Standard", shape.triangleup, location.belowbar, standardSignalColor, size=size.small)
+plotshape(sellSignal and signalTier == "Standard", "Sell Standard", shape.triangledown, location.abovebar, standardSignalColor, size=size.small)
+plotshape(buySignal and signalTier == "Quick", "Buy Quick", shape.triangleup, location.belowbar, quickSignalColor, size=size.tiny)
+plotshape(sellSignal and signalTier == "Quick", "Sell Quick", shape.triangledown, location.abovebar, quickSignalColor, size=size.tiny)
+
+// 🚨 EMERGENCY SIGNALS
+plotshape(emergencyBuySignal, "Emergency Bull", shape.arrowup, location.belowbar, color.new(color.lime, 0), size=size.normal)
+plotshape(emergencySellSignal, "Emergency Bear", shape.arrowdown, location.abovebar, color.new(color.orange, 0), size=size.normal)
+
+// Missed signals
+plotshape(missedBuyCondition, "Missed Buy", shape.triangleup, location.belowbar, color.new(color.gray, 0), size=size.normal)
+plotshape(missedSellCondition, "Missed Sell", shape.triangledown, location.abovebar, color.new(color.gray, 0), size=size.normal)
+
+if ((buySignal or sellSignal or emergencyBuySignal or emergencySellSignal) and showSignalTier and barstate.isconfirmed)
+    signal_strength_display = if emergencyBuySignal
+        emergencyBuyStrength
+    else if emergencySellSignal
+        emergencySellStrength
+    else if buySignal
+        buySignalStrength
+    else
+        sellSignalStrength
+        
+    label_text = str.tostring(signal_strength_display * 100, "#") + "%"
+    label_y = (buySignal or emergencyBuySignal) ? low - atr_value * 0.4 : high + atr_value * 0.4
+    
+    label_color = if signalTier == "Premium"
+        premiumSignalColor
+    else if signalTier == "Standard"
+        standardSignalColor
+    else if signalTier == "Emergency"
+        (buySignal or emergencyBuySignal) ? color.new(color.lime, 0) : color.new(color.orange, 0)
+    else
+        quickSignalColor
+        
+    label.new(bar_index, label_y, label_text, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, color=label_color, textcolor=color.white, size=size.tiny)
+
+plot(useEMAFilter ? emaFast : na, "EMA Fast", color.new(color.aqua, 20), 1)
+plot(useEMAFilter ? emaSlow : na, "EMA Slow", color.new(color.orange, 20), 1)
+plot(showDailyVWAP and not na(dailyVWAP) ? dailyVWAP : na, "VWAP", color.purple, 2)
+plot(showVWAPBands and not na(dailyUpperBand) ? dailyUpperBand : na, "VWAP Upper", color.new(color.purple, 70))
+plot(showVWAPBands and not na(dailyLowerBand) ? dailyLowerBand : na, "VWAP Lower", color.new(color.purple, 70))
+
+// SL/TP LINES - POPRAWIONE DEKLARACJE VAR
+var line buyStopLine = na
+var line buyTargetLine = na
+var line buyTP2Line = na
+var line buyTP3Line = na
+var line sellStopLine = na
+var line sellTargetLine = na
+var line sellTP2Line = na
+var line sellTP3Line = na
+var label buyStopLabel = na
+var label buyTargetLabel = na
+var label buyTP2Label = na
+var label buyTP3Label = na
+var label sellStopLabel = na
+var label sellTargetLabel = na
+var label sellTP2Label = na
+var label sellTP3Label = na
+
+// POPRAWIONA FUNKCJA deleteOldLines()
+deleteOldLines() =>
+    line.delete(buyStopLine)
+    line.delete(buyTargetLine)
+    line.delete(buyTP2Line)
+    line.delete(buyTP3Line)
+    line.delete(sellStopLine)
+    line.delete(sellTargetLine)
+    line.delete(sellTP2Line)
+    line.delete(sellTP3Line)
+    label.delete(buyStopLabel)
+    label.delete(buyTargetLabel)
+    label.delete(buyTP2Label)
+    label.delete(buyTP3Label)
+    label.delete(sellStopLabel)
+    label.delete(sellTargetLabel)
+    label.delete(sellTP2Label)
+    label.delete(sellTP3Label)
+
+if ((buySignal or sellSignal or emergencyBuySignal or emergencySellSignal) and showSLTPLines and barstate.isconfirmed)
+    deleteOldLines()
+
+if (buySignal or emergencyBuySignal) and showSLTPLines and valid_bar_for_signal
+    tier_mult = if signalTier == "Premium"
+        1.0
+    else if signalTier == "Standard"
+        1.1
+    else if signalTier == "Emergency"
+        0.9
+    else
+        1.2
+        
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk = close - stopLoss
+    
+    tp1 = close + (risk * tp1RR) - buffer
+    tp2 = close + (risk * tp2RR) - buffer
+    tp3 = close + (risk * tp3RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk * riskRewardRatio) - buffer
+    
+    buyStopLine := line.new(bar_index, stopLoss, bar_index + 20, stopLoss, color=color.new(color.red, 30), width=2, style=line.style_dashed)
+    buyTargetLine := line.new(bar_index, mainTP, bar_index + 20, mainTP, color=color.new(color.green, 30), width=2, style=line.style_dashed)
+    
+    buyStopLabel := label.new(bar_index + 21, stopLoss, "SL (" + signalTier + ")", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.red, 80), size=size.small)
+    buyTargetLabel := label.new(bar_index + 21, mainTP, "TP1 [BE]", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.small)
+    
+    if useMultiTP
+        buyTP2Line := line.new(bar_index, tp2, bar_index + 20, tp2, color=color.new(color.green, 50), width=1, style=line.style_dashed)
+        buyTP3Line := line.new(bar_index, tp3, bar_index + 20, tp3, color=color.new(color.green, 70), width=1, style=line.style_dashed)
+        buyTP2Label := label.new(bar_index + 21, tp2, "TP2 [Trail]", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.tiny)
+        buyTP3Label := label.new(bar_index + 21, tp3, "TP3", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.tiny)
+
+if (sellSignal or emergencySellSignal) and showSLTPLines and valid_bar_for_signal
+    tier_mult = if signalTier == "Premium"
+        1.0
+    else if signalTier == "Standard"
+        1.1
+    else if signalTier == "Emergency"
+        0.9
+    else
+        1.2
+        
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk = stopLoss - close
+    
+    tp1 = close - (risk * tp1RR) + buffer
+    tp2 = close - (risk * tp2RR) + buffer
+    tp3 = close - (risk * tp3RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk * riskRewardRatio) + buffer
+    
+    sellStopLine := line.new(bar_index, stopLoss, bar_index + 20, stopLoss, color=color.new(color.red, 30), width=2, style=line.style_dashed)
+    sellTargetLine := line.new(bar_index, mainTP, bar_index + 20, mainTP, color=color.new(color.green, 30), width=2, style=line.style_dashed)
+    
+    sellStopLabel := label.new(bar_index + 21, stopLoss, "SL (" + signalTier + ")", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.red, 80), size=size.small)
+    sellTargetLabel := label.new(bar_index + 21, mainTP, "TP1 [BE]", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.small)
+    
+    if useMultiTP
+        sellTP2Line := line.new(bar_index, tp2, bar_index + 20, tp2, color=color.new(color.green, 50), width=1, style=line.style_dashed)
+        sellTP3Line := line.new(bar_index, tp3, bar_index + 20, tp3, color=color.new(color.green, 70), width=1, style=line.style_dashed)
+        sellTP2Label := label.new(bar_index + 21, tp2, "TP2 [Trail]", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.tiny)
+        sellTP3Label := label.new(bar_index + 21, tp3, "TP3", xloc=xloc.bar_index, yloc=yloc.price, textcolor=color.white, style=label.style_none, color=color.new(color.green, 80), size=size.tiny)
+
+if not na(buyStopLine)
+    line.set_x2(buyStopLine, bar_index + 20)
+    line.set_x2(buyTargetLine, bar_index + 20)
+    label.set_x(buyStopLabel, bar_index + 21)
+    label.set_x(buyTargetLabel, bar_index + 21)
+    if not na(buyTP2Line)
+        line.set_x2(buyTP2Line, bar_index + 20)
+        line.set_x2(buyTP3Line, bar_index + 20)
+        label.set_x(buyTP2Label, bar_index + 21)
+        label.set_x(buyTP3Label, bar_index + 21)
+
+if not na(sellStopLine)
+    line.set_x2(sellStopLine, bar_index + 20)
+    line.set_x2(sellTargetLine, bar_index + 20)
+    label.set_x(sellStopLabel, bar_index + 21)
+    label.set_x(sellTargetLabel, bar_index + 21)
+    if not na(sellTP2Line)
+        line.set_x2(sellTP2Line, bar_index + 20)
+        line.set_x2(sellTP3Line, bar_index + 20)
+        label.set_x(sellTP2Label, bar_index + 21)
+        label.set_x(sellTP3Label, bar_index + 21)
+
+// ULTIMATE INFO PANEL v8.0
+var table infoTable = table.new(position.top_right, 2, 35, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    table.clear(infoTable, 0, 0, 1, 34)
+    
+    table.cell(infoTable, 0, 0, "🎯 M5 SCALPER", text_color=color.yellow, text_size=size.small)
+    table.cell(infoTable, 1, 0, "v8.0 ULTIMATE", text_color=color.lime, text_size=size.small)
+    
+    table.cell(infoTable, 0, 1, "Mode:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 1, signalProfile, text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 2, "Pair Tier:", text_color=color.white, text_size=size.tiny)
+    tierColor = pairTier == 1 ? color.green : pairTier == 2 ? color.yellow : color.orange
+    table.cell(infoTable, 1, 2, "T" + str.tostring(pairTier), text_color=tierColor, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 3, "Session:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 3, sessionText(), text_color=color.white, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 4, "Leverage:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 4, str.tostring(recommendedLeverage) + "x", text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 5, "Buy Str:", text_color=color.white, text_size=size.tiny)
+    buyColor = if buySignalTier == "Premium"
+        premiumSignalColor
+    else if buySignalTier == "Standard"
+        standardSignalColor
+    else if buySignalTier == "Quick"
+        quickSignalColor
+    else
+        color.gray
+    buyText = buySignalTier != "None" ? buySignalTier + " " + str.tostring(buySignalStrength * 100, "#") + "%" : "No"
+    table.cell(infoTable, 1, 5, buyText, text_color=buyColor, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 6, "Sell Str:", text_color=color.white, text_size=size.tiny)
+    sellColor = if sellSignalTier == "Premium"
+        premiumSignalColor
+    else if sellSignalTier == "Standard"
+        standardSignalColor
+    else if sellSignalTier == "Quick"
+        quickSignalColor
+    else
+        color.gray
+    sellText = sellSignalTier != "None" ? sellSignalTier + " " + str.tostring(sellSignalStrength * 100, "#") + "%" : "No"
+    table.cell(infoTable, 1, 6, sellText, text_color=sellColor, text_size=size.tiny)
+    
+    // 🚨 EMERGENCY SIGNALS STATUS
+    table.cell(infoTable, 0, 7, "Emergency:", text_color=color.white, text_size=size.tiny)
+    emergency_status = if emergency_bull_conditions or emergency_bear_conditions
+        "ACTIVE"
+    else if enable_emergency_mode
+        "READY"
+    else
+        "OFF"
+    emergency_color = if emergency_bull_conditions or emergency_bear_conditions
+        color.lime
+    else if enable_emergency_mode
+        color.yellow
+    else
+        color.gray
+    table.cell(infoTable, 1, 7, emergency_status, text_color=emergency_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 8, "Threshold:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 8, str.tostring(currentPremiumThreshold * 100, "#") + "/" + str.tostring(currentStandardThreshold * 100, "#") + "/" + str.tostring(currentQuickThreshold * 100, "#"), text_color=color.white, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 9, "Market:", text_color=color.white, text_size=size.tiny)
+    condition_color = if market_condition == "NORMAL"
+        color.green
+    else if market_condition == "HIGH_VOLATILITY"
+        color.yellow
+    else if market_condition == "GAP_OPEN"
+        color.orange
+    else
+        color.red
+    table.cell(infoTable, 1, 9, market_condition, text_color=condition_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 10, "MFI:", text_color=color.white, text_size=size.tiny)
+    mfi_color = mfi_value < mfi_oversold ? color.green : mfi_value > mfi_overbought ? color.red : color.gray
+    table.cell(infoTable, 1, 10, str.tostring(mfi_value, "#"), text_color=mfi_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 11, "MACD:", text_color=color.white, text_size=size.tiny)
+    macd_color = macd_line > macd_signal ? color.green : color.red
+    table.cell(infoTable, 1, 11, macd_line > macd_signal ? "↑" : "↓", text_color=macd_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 12, "Micro:", text_color=color.white, text_size=size.tiny)
+    micro = microTrendBullish ? "↑" : microTrendBearish ? "↓" : "→"
+    micro_color = microTrendBullish ? color.green : microTrendBearish ? color.red : color.gray
+    table.cell(infoTable, 1, 12, micro, text_color=micro_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 13, "Key Levels:", text_color=color.white, text_size=size.tiny)
+    [near_level_info, _] = isNearKeyLevel(close)
+    level_color = near_level_info ? color.green : color.gray
+    table.cell(infoTable, 1, 13, near_level_info ? "NEAR" : "FAR", text_color=level_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 14, "ADX:", text_color=color.white, text_size=size.tiny)
+    adx_color = isTrending ? color.green : risingADX ? color.yellow : color.red
+    adx_text = str.tostring(adx, "#") + (risingADX ? "↗" : "")
+    table.cell(infoTable, 1, 14, adx_text, text_color=adx_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 15, "Volume:", text_color=color.white, text_size=size.tiny)
+    vol_color = volumeSpike ? color.green : color.gray
+    table.cell(infoTable, 1, 15, volumeSpike ? "SPIKE" : "NORM", text_color=vol_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 16, "HTF:", text_color=color.white, text_size=size.tiny)
+    htf_trend = htfBullish ? "↑" : htfBearish ? "↓" : "→"
+    htf_color = htfBullish ? color.green : htfBearish ? color.red : color.gray
+    table.cell(infoTable, 1, 16, htf_trend, text_color=htf_color, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 17, "Zones:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 17, str.tostring(total_objects), text_color=color.white, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 18, "Memory:", text_color=color.white, text_size=size.tiny)
+    [memory_pressure_info, _] = getPerformanceMetrics()
+    memory_color = memory_pressure_info > 0.8 ? color.red : memory_pressure_info > 0.6 ? color.yellow : color.green
+    memory_text = str.tostring(memory_pressure_info * 100, "#") + "%"
+    table.cell(infoTable, 1, 18, memory_text, text_color=memory_color, text_size=size.tiny)
+
+    // 🎯 v8.0 PRIORITY ENHANCEMENTS STATUS
+    table.cell(infoTable, 0, 19, "🎯 PRIORYTET STATUS", text_color=color.lime, text_size=size.small)
+    table.cell(infoTable, 1, 19, "v8.0", text_color=color.lime, text_size=size.small)
+    
+    // PRIORYTET 1: Mitigation Mode
+    table.cell(infoTable, 0, 20, "P1 Mitigation:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 20, enable_mitigation_mode ? "ON" : "OFF", text_color=enable_mitigation_mode ? color.lime : color.gray, text_size=size.tiny)
+    
+    // PRIORYTET 2: Dynamic Opposite Zone
+    table.cell(infoTable, 0, 21, "P2 Dynamic OZ:", text_color=color.white, text_size=size.tiny)
+    dynamic_oz_active = enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge
+    table.cell(infoTable, 1, 21, dynamic_oz_active ? "ACTIVE" : (enable_dynamic_opposite_zone ? "READY" : "OFF"), text_color=dynamic_oz_active ? color.lime : enable_dynamic_opposite_zone ? color.yellow : color.gray, text_size=size.tiny)
+    
+    // PRIORYTET 3: Rising ADX
+    table.cell(infoTable, 0, 22, "P3 Rising ADX:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 22, risingADX ? "RISING" : (enable_rising_adx ? "READY" : "OFF"), text_color=risingADX ? color.lime : enable_rising_adx ? color.yellow : color.gray, text_size=size.tiny)
+    
+    // PRIORYTET 4: Emergency Mode
+    table.cell(infoTable, 0, 23, "P4 Emergency:", text_color=color.white, text_size=size.tiny)
+    emergency_active = emergency_bull_conditions or emergency_bear_conditions
+    table.cell(infoTable, 1, 23, emergency_active ? "ACTIVE" : (enable_emergency_mode ? "READY" : "OFF"), text_color=emergency_active ? color.lime : enable_emergency_mode ? color.yellow : color.gray, text_size=size.tiny)
+    
+    // Informacje o optymalizacjach
+    table.cell(infoTable, 0, 24, "Zone Checks:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 24, str.tostring(zone_check_limit), text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 25, "Dynamic Age:", text_color=color.white, text_size=size.tiny)
+    dynamic_age_info = getDynamicMinAge()
+    age_color_info = dynamic_age_info < min_zone_age ? color.lime : color.white
+    table.cell(infoTable, 1, 25, str.tostring(dynamic_age_info), text_color=age_color_info, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 26, "Adaptive TH:", text_color=color.white, text_size=size.tiny)
+    adaptive_active_info = currentPremiumThreshold < premiumThreshold
+    table.cell(infoTable, 1, 26, adaptive_active_info ? "ON" : "OFF", text_color=adaptive_active_info ? color.lime : color.gray, text_size=size.tiny)
+
+    // Statystyki strategii
+    if runAsStrategy
+        table.cell(infoTable, 0, 27, "📊 STRATEGY STATS", text_color=color.aqua, text_size=size.small)
+        table.cell(infoTable, 1, 27, "", text_color=color.aqua, text_size=size.small)
+        
+        pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : 0
+        table.cell(infoTable, 0, 28, "Profit Factor:", text_color=color.white, text_size=size.tiny)
+        pfColor = pf >= 1.5 ? color.green : pf >= 1.2 ? color.yellow : color.red
+        table.cell(infoTable, 1, 28, str.tostring(pf, "#.##"), text_color=pfColor, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 29, "Net P&L:", text_color=color.white, text_size=size.tiny)
+        pnlColor = strategy.netprofit > 0 ? color.green : color.red
+        table.cell(infoTable, 1, 29, "$" + str.tostring(strategy.netprofit, "#"), text_color=pnlColor, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 30, "Win Rate:", text_color=color.white, text_size=size.tiny)
+        winRate = strategy.closedtrades > 0 ? strategy.wintrades / strategy.closedtrades * 100 : 0
+        wrColor = winRate >= 60 ? color.green : winRate >= 50 ? color.yellow : color.red
+        table.cell(infoTable, 1, 30, str.tostring(winRate, "#") + "%", text_color=wrColor, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 31, "Total Trades:", text_color=color.white, text_size=size.tiny)
+        table.cell(infoTable, 1, 31, str.tostring(strategy.closedtrades), text_color=color.white, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 32, "BTC Trend:", text_color=color.white, text_size=size.tiny)
+        btc_trend_text = btcTrend > 0 ? "UP" : btcTrend < 0 ? "DOWN" : "FLAT"
+        btc_trend_color = btcTrend > 0 ? color.green : btcTrend < 0 ? color.red : color.gray
+        table.cell(infoTable, 1, 32, btc_trend_text, text_color=btc_trend_color, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 33, "Room B/S:", text_color=color.white, text_size=size.tiny)
+        room_buy = getRoomToTarget(true)
+        room_sell = getRoomToTarget(false)
+        room_text = str.tostring(room_buy, "#.#") + "/" + str.tostring(room_sell, "#.#")
+        table.cell(infoTable, 1, 33, room_text, text_color=color.white, text_size=size.tiny)
+        
+        table.cell(infoTable, 0, 34, "Version:", text_color=color.white, text_size=size.tiny)
+        table.cell(infoTable, 1, 34, "v7.9→v8.0 FINAL", text_color=color.lime, text_size=size.tiny)
+
+// ALERTS - ENHANCED v8.0
+alertcondition(buySignal and barstate.isconfirmed, "Buy Signal v8.0", "BUY Signal Generated")
+alertcondition(sellSignal and barstate.isconfirmed, "Sell Signal v8.0", "SELL Signal Generated")
+alertcondition(emergencyBuySignal, "Emergency Buy v8.0", "EMERGENCY BUY Signal Generated")
+alertcondition(emergencySellSignal, "Emergency Sell v8.0", "EMERGENCY SELL Signal Generated")
+
+// Regular BUY alert (JSON)
+if buySignal and barstate.isconfirmed
+    tier_mult = signalTier == "Premium" ? 1.0 : signalTier == "Standard" ? 1.1 : 1.2
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk = close - stopLoss
+    
+    tp1 = close + (risk * tp1RR) - buffer
+    tp2 = close + (risk * tp2RR) - buffer
+    tp3 = close + (risk * tp3RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk * riskRewardRatio) - buffer
+    breakEven = close + (risk * 0.1)
+    
+    alertMessage = '{"action":"buy","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(buySignalStrength, "#.###") + ',"tier":"' + signalTier + '"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier(signalTier), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(pairTier) + ',"leverage":' + str.tostring(recommendedLeverage)
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // v8.0 PRIORITY ENHANCEMENTS
+    alertMessage += ',"priority_enhancements":{'
+    alertMessage += '"mitigation_mode_active":' + (enable_mitigation_mode ? "true" : "false") + ','
+    alertMessage += '"dynamic_opposite_zone_active":' + (enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge ? "true" : "false") + ','
+    alertMessage += '"rising_adx_active":' + (risingADX ? "true" : "false") + ','
+    alertMessage += '"emergency_mode_active":false}'
+    alertMessage += ',"version":"8.0_ULTIMATE_FINAL"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// Regular SELL alert (JSON)
+if sellSignal and barstate.isconfirmed
+    tier_mult = signalTier == "Premium" ? 1.0 : signalTier == "Standard" ? 1.1 : 1.2
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk = stopLoss - close
+    
+    tp1 = close - (risk * tp1RR) + buffer
+    tp2 = close - (risk * tp2RR) + buffer
+    tp3 = close - (risk * tp3RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk * riskRewardRatio) + buffer
+    breakEven = close - (risk * 0.1)
+    
+    alertMessage = '{"action":"sell","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(sellSignalStrength, "#.###") + ',"tier":"' + signalTier + '"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier(signalTier), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(pairTier) + ',"leverage":' + str.tostring(recommendedLeverage)
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // v8.0 PRIORITY ENHANCEMENTS
+    alertMessage += ',"priority_enhancements":{'
+    alertMessage += '"mitigation_mode_active":' + (enable_mitigation_mode ? "true" : "false") + ','
+    alertMessage += '"dynamic_opposite_zone_active":' + (enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge ? "true" : "false") + ','
+    alertMessage += '"rising_adx_active":' + (risingADX ? "true" : "false") + ','
+    alertMessage += '"emergency_mode_active":false}'
+    alertMessage += ',"version":"8.0_ULTIMATE_FINAL"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// 🚨 EMERGENCY BUY alert (JSON)
+if emergencyBuySignal and barstate.isconfirmed
+    tier_mult = 0.9  // Tighter SL for emergency
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk = close - stopLoss
+    
+    tp1 = close + (risk * tp1RR) - buffer
+    tp2 = close + (risk * tp2RR) - buffer
+    tp3 = close + (risk * tp3RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk * riskRewardRatio) - buffer
+    breakEven = close + (risk * 0.1)
+    
+    alertMessage = '{"action":"emergency_buy","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(emergencyBuyStrength, "#.###") + ',"tier":"Emergency"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier("Emergency"), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(pairTier) + ',"leverage":' + str.tostring(recommendedLeverage)
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // EMERGENCY CONDITIONS
+    alertMessage += ',"emergency_conditions":{'
+    alertMessage += '"fresh_bos_age":' + str.tostring(bar_index - lastBOSBar) + ','
+    alertMessage += '"volume_multiplier":' + str.tostring(volume / volume_avg, "#.#") + ','
+    alertMessage += '"micro_trend_bullish":' + (microTrendBullish ? "true" : "false") + ','
+    alertMessage += '"rising_adx":' + (risingADX ? "true" : "false") + '}'
+    
+    alertMessage += ',"priority_enhancements":{'
+    alertMessage += '"mitigation_mode_active":' + (enable_mitigation_mode ? "true" : "false") + ','
+    alertMessage += '"dynamic_opposite_zone_active":' + (enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge ? "true" : "false") + ','
+    alertMessage += '"rising_adx_active":' + (risingADX ? "true" : "false") + ','
+    alertMessage += '"emergency_mode_active":true}'
+    alertMessage += ',"version":"8.0_EMERGENCY_MODE"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// 🚨 EMERGENCY SELL alert (JSON)
+if emergencySellSignal and barstate.isconfirmed
+    tier_mult = 0.9  // Tighter SL for emergency
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk = stopLoss - close
+    
+    tp1 = close - (risk * tp1RR) + buffer
+    tp2 = close - (risk * tp2RR) + buffer
+    tp3 = close - (risk * tp3RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk * riskRewardRatio) + buffer
+    breakEven = close - (risk * 0.1)
+    
+    alertMessage = '{"action":"emergency_sell","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(emergencySellStrength, "#.###") + ',"tier":"Emergency"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier("Emergency"), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(pairTier) + ',"leverage":' + str.tostring(recommendedLeverage)
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // EMERGENCY CONDITIONS
+    alertMessage += ',"emergency_conditions":{'
+    alertMessage += '"fresh_bos_age":' + str.tostring(bar_index - lastBOSBar) + ','
+    alertMessage += '"volume_multiplier":' + str.tostring(volume / volume_avg, "#.#") + ','
+    alertMessage += '"micro_trend_bearish":' + (microTrendBearish ? "true" : "false") + ','
+    alertMessage += '"rising_adx":' + (risingADX ? "true" : "false") + '}'
+    
+    alertMessage += ',"priority_enhancements":{'
+    alertMessage += '"mitigation_mode_active":' + (enable_mitigation_mode ? "true" : "false") + ','
+    alertMessage += '"dynamic_opposite_zone_active":' + (enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge ? "true" : "false") + ','
+    alertMessage += '"rising_adx_active":' + (risingADX ? "true" : "false") + ','
+    alertMessage += '"emergency_mode_active":true}'
+    alertMessage += ',"version":"8.0_EMERGENCY_MODE"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)

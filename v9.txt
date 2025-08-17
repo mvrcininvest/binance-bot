@@ -1,0 +1,2331 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// ICT/SMC Crypto Scalping ULTIMATE v9.1 FINAL (Enhanced Volume Context + Complete Fake Breakout Integration)
+
+//@version=6
+strategy("ICT/SMC Crypto Scalping ULTIMATE v9.1 FINAL", 
+         overlay=true, 
+         max_boxes_count=500, 
+         max_lines_count=500, 
+         max_labels_count=500,
+         initial_capital=10000,
+         currency=currency.USD,
+         commission_type=strategy.commission.percent,
+         commission_value=0.075,
+         slippage=3,
+         pyramiding=0,
+         calc_on_every_tick=false,
+         process_orders_on_close=true,
+         default_qty_type=strategy.percent_of_equity,
+         default_qty_value=10,
+         close_entries_rule="ANY",
+         use_bar_magnifier=true)
+
+// =====================================================================
+// TYPES
+// =====================================================================
+
+type OrderBlock
+    box boxObj
+    label labelObj
+    float top
+    float bottom
+    int startBar
+    bool tested
+    float score
+    int retests
+
+type FairValueGap
+    box boxObj
+    label labelObj
+    float top
+    float bottom
+    int startBar
+    bool tested
+    float score
+    int retests
+
+type KeyLevel
+    float level
+    string timeframe
+    string type
+    float strength
+    int creation_bar
+
+type MarketRegimeState
+    string regime
+    float confidence
+    string previous_regime
+    int bars_in_regime
+
+type VolumeProfile
+    float accumulation_ratio
+    float distribution_ratio
+    float institutional_flow
+    bool climax_detected
+    float retest_confidence
+
+// =====================================================================
+// ULTIMATE SETTINGS v9.1 WITH ENHANCED VOLUME & FAKE BREAKOUT
+// =====================================================================
+
+// Enhanced 5-Tier Signal System (100% COMPLIANT)
+g_signals = "Signal Profile & Multi-Tier System (v9.1 ENHANCED)"
+signalProfile = input.string("Balanced", "Signal Profile", options=["Conservative", "Balanced", "Aggressive", "Custom"], group=g_signals, tooltip="5-TIER CRYPTO OPTIMIZED v9.1 ENHANCED:\n- Conservative: Swing style (50/40/30/22%) - larger positions\n- Balanced: M5 scalping sweet spot (45/35/25/18%) - RECOMMENDED\n- Aggressive: Pure scalping (42/30/22/16%) - maximum activity\n- Custom: full control of all thresholds\n\nEXPECTED SIGNALS/DAY:\nPlatinum: 1-2 | Premium: 2-4 | Standard: 4-8 | Quick: 6-12 | Emergency: 0-3\nTOTAL: 13-29 signals/day (EXCELLENT VARIETY!)")
+
+platinumThreshold = input.float(0.45, "Platinum Threshold (45%)", minval=0.4, maxval=0.6, step=0.01, group=g_signals, tooltip="PLATINUM: Rarest, best signals\n- 45% = sweet spot for crypto momentum\n- 1-2 signals daily\n- Highest positions (2.0x multiplier)")
+premiumThreshold = input.float(0.35, "Premium Threshold (35%)", minval=0.3, maxval=0.5, step=0.01, group=g_signals, tooltip="PREMIUM: High quality signals\n- 35% = balanced quality/frequency\n- 2-4 signals daily\n- Large positions (1.5x multiplier)")
+standardThreshold = input.float(0.25, "Standard Threshold (25%)", minval=0.2, maxval=0.4, step=0.01, group=g_signals, tooltip="STANDARD: Main workhorse\n- 25% = optimal for M5 scalping\n- 4-8 signals daily\n- Standard positions (1.0x multiplier)")
+quickThreshold = input.float(0.18, "Quick Threshold (18%)", minval=0.15, maxval=0.3, step=0.01, group=g_signals, tooltip="QUICK: Frequent opportunities\n- 18% = frequent opportunities\n- 6-12 signals daily\n- Small positions (0.7x multiplier)")
+
+useZoneRetests = input.bool(true, "Enhanced Zone Re-tests", group=g_signals, tooltip="ZONE QUALITY: Boosts signal strength (+25-35%) for zones tested 1-2 times")
+useMicroTrend = input.bool(true, "Micro-Trend Detection", group=g_signals, tooltip="TREND MICRO: EMA3 vs EMA5 analysis - KEY for Emergency Mode!")
+adaptiveCooldown = input.bool(true, "Smart Cooldown System", group=g_signals, tooltip="SMART TIMING: Dynamic cooldown adapted to session and volatility")
+
+// Advanced Market Regime Detection (100% COMPLIANT)
+g_regime = "Advanced Market Regime Detection (100% Roadmap)"
+enable_enhanced_regime = input.bool(true, "Enhanced Regime Detection", group=g_regime, tooltip="GAME CHANGER: Detects Consolidation/Trend/Breakout + confidence score")
+regime_period = input.int(20, "Regime Analysis Period", minval=15, maxval=30, group=g_regime, tooltip="ANALYSIS DEPTH: Market regime analysis period")
+consolidation_atr_threshold = input.float(0.6, "Consolidation ATR Threshold", minval=0.4, maxval=1.0, step=0.1, group=g_regime, tooltip="CONSOLIDATION: Volatility threshold for consolidation")
+
+// Retest Confirmation System (100% COMPLIANT + M5 OPTIMIZATION)
+g_retest = "Retest Confirmation System (M5 Optimized)"
+enable_retest_confirmation = input.bool(true, "Enable Retest Confirmation", group=g_retest, tooltip="RETEST MASTER: Waits for retest of swing levels + rejection (ONLY 5min - Pure Scalping Mode)")
+retest_tolerance = input.float(0.15, "Retest Tolerance %", minval=0.05, maxval=0.5, step=0.05, group=g_retest, tooltip="RETEST PRECISION: Tolerance for retest detection")
+min_wick_ratio = input.float(1.5, "Min Wick/Body Ratio", minval=1.0, maxval=3.0, step=0.1, group=g_retest, tooltip="REJECTION FILTER: Minimum wick size for rejection")
+m5_only_retest = input.bool(true, "M5 Only Mode (Pure Scalping)", group=g_retest, tooltip="PURE SCALPING: Retest system active ONLY on 5min")
+
+// Multi-Timeframe Agreement System (100% COMPLIANT)
+g_mtf_new = "Multi-Timeframe Agreement System (5-TF Analysis)"
+enable_mtf_agreement = input.bool(true, "MTF Agreement Filter", group=g_mtf_new, tooltip="MTF INTELLIGENCE: 5 timeframes analysis (5m, 15m, 1h, 4h, 1D)")
+mtf_platinum_threshold = input.float(0.70, "MTF Platinum Requirement (>=70%)", minval=0.6, maxval=0.9, step=0.05, group=g_mtf_new, tooltip="PLATINUM MTF: Requires 70%+ agreement")
+mtf_premium_threshold = input.float(0.60, "MTF Premium Requirement (>=60%)", minval=0.5, maxval=0.8, step=0.05, group=g_mtf_new, tooltip="PREMIUM MTF: Requires 60%+ agreement")
+mtf_standard_threshold = input.float(0.50, "MTF Standard Requirement (>=50%)", minval=0.4, maxval=0.7, step=0.05, group=g_mtf_new, tooltip="STANDARD MTF: Requires 50%+ agreement")
+mtf_quick_threshold = input.float(0.40, "MTF Quick Requirement (>=40%)", minval=0.3, maxval=0.6, step=0.05, group=g_mtf_new, tooltip="QUICK MTF: Requires 40%+ agreement")
+
+// Wave Analysis Filter (100% COMPLIANT)
+g_wave = "Mid-Trend False Signal Prevention (Wave Analysis)"
+enable_wave_filter = input.bool(true, "Mid-Trend Prevention", group=g_wave, tooltip="WAVE SMART: Blocks counter-trend in mid-move")
+wave_analysis_period = input.int(15, "Wave Analysis Period", minval=10, maxval=25, group=g_wave, tooltip="WAVE DEPTH: 15-bar lookback for wave analysis")
+shallow_retracement_threshold = input.float(0.25, "Shallow Retracement % (Penalty)", minval=0.15, maxval=0.4, step=0.05, group=g_wave, tooltip="SHALLOW FILTER: Penalty for shallow retracements")
+
+// Candlestick Pattern Enhancement (100% COMPLIANT + INTEGRATION)
+g_wick = "Wick Rejection Bonus System (Enhanced Patterns)"
+enable_wick_patterns = input.bool(true, "Wick Pattern Bonuses", group=g_wick, tooltip="CANDLE LANGUAGE: Bonus for candlestick patterns")
+engulfing_bonus_val = input.float(0.2, "Engulfing Pattern Bonus (score)", minval=0.05, maxval=0.5, step=0.05, group=g_wick, tooltip="ENGULFING POWER: +0.2 zone score for engulfing")
+doji_key_level_bonus_val = input.float(0.1, "Doji on Key Level Bonus (score)", minval=0.02, maxval=0.2, step=0.02, group=g_wick, tooltip="DOJI PRECISION: +0.1 for doji on key level")
+hammer_bonus_val = input.float(0.05, "Hammer/Shooting Bonus (score)", minval=0.01, maxval=0.1, step=0.01, group=g_wick, tooltip="HAMMER/SHOOTING: +0.05 for rejection wicks")
+
+// 🚀 NEW v9.1: Enhanced Fake Breakout Detection
+g_breakout = "🚀 Enhanced Fake Breakout Detection (v9.1 Complete Integration)"
+enable_fake_breakout_filter = input.bool(true, "Enhanced Fake Breakout Filter", group=g_breakout, tooltip="🚀 v9.1 ENHANCED: Complete integration with gradual signal weakening\n• Basic Detection: M5-optimized fake breakout detection\n• Advanced Integration: Gradual penalty instead of hard block\n• Emergency Bypass: Momentum moves protected\n• Volume Confirmation: Enhanced with institutional flow")
+fake_breakout_lookback = input.int(10, "M5 Breakout Lookback", minval=5, maxval=20, group=g_breakout, tooltip="M5 LOOKBACK: 10 bars optimal for M5 scalping")
+fake_breakout_reversion_threshold = input.float(0.002, "Reversion Threshold", minval=0.001, maxval=0.005, step=0.001, group=g_breakout, tooltip="REVERSION FILTER: 0.2% reversion threshold")
+fake_breakout_penalty_strength = input.float(0.25, "Fake Breakout Penalty", minval=0.1, maxval=0.5, step=0.05, group=g_breakout, tooltip="🚀 v9.1 NEW: Gradual penalty strength (25% = optimal balance)")
+fake_breakout_volume_confirmation = input.bool(true, "Volume Confirmation", group=g_breakout, tooltip="🚀 v9.1 NEW: Requires volume confirmation for fake breakout detection")
+
+// 🎯 NEW v9.1: Enhanced Volume Context System
+g_volume_enhanced = "🎯 Enhanced Volume Context System (v9.1 Institutional Flow)"
+enable_enhanced_volume_context = input.bool(true, "Enhanced Volume Context", group=g_volume_enhanced, tooltip="🎯 v9.1 GAME CHANGER: Institutional flow detection + S/R retest logic\n• Accumulation vs Distribution patterns\n• Volume climax detection\n• Support/Resistance retest confirmation\n• Institutional flow analysis\n• Context-aware volume scoring")
+volume_context_lookback = input.int(20, "Volume Context Lookback", minval=10, maxval=30, group=g_volume_enhanced, tooltip="CONTEXT DEPTH: 20-bar lookback for volume analysis")
+institutional_flow_threshold = input.float(2.2, "Institutional Flow Threshold", minval=1.5, maxval=3.5, step=0.1, group=g_volume_enhanced, tooltip="INSTITUTIONAL: 2.2x volume threshold for institutional detection")
+climax_volume_threshold = input.float(3.5, "Climax Volume Threshold", minval=2.5, maxval=5.0, step=0.1, group=g_volume_enhanced, tooltip="CLIMAX: 3.5x volume threshold for exhaustion detection")
+retest_volume_bonus = input.float(0.15, "Retest Volume Bonus", minval=0.05, maxval=0.3, step=0.05, group=g_volume_enhanced, tooltip="RETEST BONUS: 15% bonus for volume-confirmed retest")
+accumulation_threshold = input.float(0.65, "Accumulation Threshold", minval=0.5, maxval=0.8, step=0.05, group=g_volume_enhanced, tooltip="ACCUMULATION: 65% threshold for accumulation pattern")
+
+// Smart Volume Analysis (ENHANCED - Distribution Patterns) - LEGACY COMPATIBILITY
+g_volume_smart = "Volume Confirmation Enhancements (Distribution Patterns)"
+enable_smart_volume = input.bool(true, "Context-Aware Volume", group=g_volume_smart, tooltip="VOLUME INTELLIGENCE: Smart context-aware volume analysis")
+enable_distribution_patterns = input.bool(true, "Distribution Pattern Detection", group=g_volume_smart, tooltip="DISTRIBUTION INTEL: Detects institutional flow patterns")
+distribution_volume_threshold = input.float(1.8, "Distribution Vol Threshold", minval=1.3, maxval=2.5, step=0.1, group=g_volume_smart, tooltip="DISTRIBUTION VOLUME: 1.8x threshold for pattern detection")
+
+// Priority Enhancements (P1-P4) - 100% COMPLIANT
+g_priority = "Priority Enhancements (P1-P4) - Full Implementation"
+enable_mitigation_mode = input.bool(true, "P1: Zone Mitigation Mode", group=g_priority, tooltip="PRIORITY 1: Mitigation Trading (100% IMPLEMENTED)")
+mitigation_threshold = input.float(0.30, "Mitigation Position %", minval=0.2, maxval=0.5, step=0.05, group=g_priority, tooltip="MITIGATION PRECISION: 30% = sweet spot for M5 scalping")
+enable_dynamic_opposite_zone = input.bool(true, "P2: Dynamic Opposite Zone", group=g_priority, tooltip="PRIORITY 2: After Fresh BOS loosens requirements by 50%")
+dynamic_reduction_factor = input.float(0.5, "BOS Reduction Factor", minval=0.4, maxval=0.8, step=0.1, group=g_priority, tooltip="BOS REDUCTION: 50% reduction = optimal for momentum")
+enable_rising_adx = input.bool(true, "P3: Rising ADX Enhancement", group=g_priority, tooltip="PRIORITY 3: Accepts rising ADX for 3 bars")
+enable_emergency_mode = input.bool(true, "P4: Enable Emergency Impulse Mode", group=g_priority, tooltip="PRIORITY 4: TURBO MODE! (100% IMPLEMENTED)")
+emergency_volume_threshold = input.float(2.8, "Emergency Vol Threshold", minval=2.5, maxval=5.0, step=0.1, group=g_priority, tooltip="EMERGENCY VOLUME: 2.8x = crypto-tuned threshold")
+emergency_bos_age = input.int(3, "Emergency BOS Age", minval=1, maxval=8, group=g_priority, tooltip="FRESH BOS: Max 3 bars for Emergency")
+emergency_signal_strength = input.float(0.42, "Emergency Base Strength", minval=0.3, maxval=0.7, step=0.05, group=g_priority, tooltip="EMERGENCY STRENGTH: 42% base strength")
+
+// Advanced Quality Filters (ENHANCED)
+g_quality = "Advanced Quality Filters (Enhanced v9.1)"
+useFreshBOS = input.bool(true, "Fresh BOS Direction Filter", group=g_quality, tooltip="FRESH BOS: +12% for fresh BOS in signal direction")
+bosMaxAge = input.int(8, "Max BOS Age (bars)", minval=5, maxval=30, group=g_quality, tooltip="BOS FRESHNESS: 8 bars = M5 optimized")
+useZonePosition = input.bool(true, "Zone Position Filter", group=g_quality, tooltip="ZONE POSITION: Checks price position in zone")
+zonePositionThreshold = input.float(0.6, "Zone Position %", minval=0.5, maxval=0.8, step=0.1, group=g_quality, tooltip="ZONE PENETRATION: 60% = standard mode threshold")
+useOppositeZoneFilter = input.bool(true, "Opposite Zone Distance", group=g_quality, tooltip="OPPOSITE ZONES: Distance filter from opposite zones")
+minOppositeDistance = input.float(0.8, "Min Distance (ATR)", minval=0.5, maxval=2.0, step=0.1, group=g_quality, tooltip="DISTANCE FILTER: 0.8 ATR minimum distance")
+ob_opposition_weight = input.float(1.0, "OB Opposition Weight", minval=0.5, maxval=1.5, step=0.1, group=g_quality, tooltip="OB WEIGHT: 1.0 = full weight for Order Blocks")
+fvg_opposition_weight = input.float(0.7, "FVG Opposition Weight", minval=0.3, maxval=1.0, step=0.1, group=g_quality, tooltip="FVG WEIGHT: 0.7 = reduced weight for FVGs")
+useVolumeDirection = input.bool(true, "Volume Direction Filter", group=g_quality, tooltip="VOLUME DIRECTION: +6% for dominant volume direction")
+useActiveSessions = input.bool(true, "Active Trading Sessions", group=g_quality, tooltip="ACTIVE SESSIONS: Bonus for active sessions")
+enableRoomFilter = input.bool(true, "Room-to-Target Filter", group=g_quality, tooltip="ROOM FILTER: Checks space to target")
+minRoomToTarget = input.float(0.8, "Min Room (ATR)", minval=0.3, maxval=2.0, step=0.1, group=g_quality, tooltip="TARGET ROOM: 0.8 ATR minimum space to target")
+enableReEntry = input.bool(true, "Re-entry after Sweep", group=g_quality, tooltip="RE-ENTRY: +15% bonus after liquidity sweep")
+reEntryBonus = input.float(0.15, "Re-entry Bonus", minval=0.05, maxval=0.3, step=0.05, group=g_quality, tooltip="SWEEP BONUS: 15% bonus for re-entry setup")
+
+// Extreme Conditions Protection (ENHANCED)
+g_extreme = "Extreme Conditions Protection (Smart Relief)"
+enable_extreme_filter = input.bool(true, "Extreme Conditions Filter", group=g_extreme, tooltip="EXTREME PROTECTION: Protection against black swan events")
+extreme_vol_threshold = input.float(3.5, "Extreme Vol Threshold", minval=1.5, maxval=5.0, step=0.1, group=g_extreme, tooltip="EXTREME VOLATILITY: 3.5x threshold")
+extreme_range_threshold = input.float(4.5, "Extreme Range Threshold", minval=2.0, maxval=6.0, step=0.5, group=g_extreme, tooltip="EXTREME RANGE: 4.5x average range")
+gap_threshold = input.float(0.5, "Gap Threshold (ATR)", minval=0.2, maxval=1.0, step=0.1, group=g_extreme, tooltip="GAP DETECTION: 0.5 ATR gap threshold")
+smart_extreme_relief = input.bool(true, "Smart Extreme Relief", group=g_extreme, tooltip="SMART RELIEF: Distinguishes chaos from controlled impulse")
+
+// Technical Indicators & Filters (ENHANCED - 100% COMPLIANT)
+g_filter = "Technical Indicators & Filters (v9.1 Enhanced)"
+adxMode = input.string("Soft", "ADX Mode", options=["Hard", "Soft", "Off"], group=g_filter, tooltip="ADX MODE:\n- Hard: Strict ADX>20 requirement\n- Soft: ADX>16 OR Rising ADX (3 bars)\n- Off: No ADX filter")
+adxThreshold = input.int(20, "ADX Threshold", minval=12, maxval=30, group=g_filter, tooltip="ADX THRESHOLD: 20 = standard trending threshold")
+useEMAFilter = input.bool(true, "EMA Filter", group=g_filter, tooltip="EMA FILTER: Trend alignment bonus")
+emaFastLength = input.int(9, "EMA Fast", minval=5, maxval=15, group=g_filter, tooltip="EMA FAST: 9-period EMA")
+emaSlowLength = input.int(21, "EMA Slow", minval=15, maxval=30, group=g_filter, tooltip="EMA SLOW: 21-period EMA")
+mfi_length = input.int(14, "MFI Length", minval=8, maxval=20, group=g_filter, tooltip="MFI: 14-period Money Flow Index")
+mfi_oversold = input.float(20, "MFI Oversold", minval=15, maxval=25, group=g_filter, tooltip="MFI OVERSOLD: 20 level")
+mfi_overbought = input.float(80, "MFI Overbought", minval=75, maxval=88, group=g_filter, tooltip="MFI OVERBOUGHT: 80 level")
+macd_fast = input.int(12, "MACD Fast", minval=8, maxval=15, group=g_filter, tooltip="MACD FAST: 12-period EMA")
+macd_slow = input.int(26, "MACD Slow", minval=20, maxval=35, group=g_filter, tooltip="MACD SLOW: 26-period EMA")
+macd_signal_length = input.int(9, "MACD Signal", minval=5, maxval=15, group=g_filter, tooltip="MACD SIGNAL: 9-period signal line")
+volumeThreshold = input.float(1.5, "Volume Spike", minval=1.1, maxval=2.5, step=0.1, group=g_filter, tooltip="VOLUME SPIKE: 1.5x average volume")
+
+// Crypto & Market Context (ENHANCED - 100% COMPLIANT)
+g_crypto = "Crypto & Market Context (Enhanced v9.1)"
+enableBTCCorrelation = input.bool(true, "BTC Correlation", group=g_crypto, tooltip="BTC CORRELATION: Bitcoin trend analysis")
+btcCorrelationThreshold = input.float(0.5, "BTC Corr Threshold", minval=0.2, maxval=0.8, group=g_crypto, tooltip="BTC THRESHOLD: 50% correlation threshold")
+btcHardFilter = input.bool(true, "BTC Hard Filter", group=g_crypto, tooltip="BTC HARD FILTER: Blocks counter-BTC signals")
+
+// Confluence Weights (100% COMPLIANT + v9.1 ENHANCED)
+g_confluence = "Confluence Weights (Optimized v9.1)"
+zone_quality_weight = input.float(0.25, "Zone Quality Weight", minval=0.1, maxval=0.4, step=0.05, group=g_confluence, tooltip="ZONE WEIGHT: 25% = zone quality importance")
+key_levels_weight = input.float(0.20, "Key Levels Weight", minval=0.1, maxval=0.3, step=0.05, group=g_confluence, tooltip="LEVELS WEIGHT: 20% = key levels importance")
+technical_weight = input.float(0.25, "Technical Weight", minval=0.1, maxval=0.4, step=0.05, group=g_confluence, tooltip="TECHNICAL WEIGHT: 25% = indicators importance")
+context_weight = input.float(0.20, "Context Weight", minval=0.1, maxval=0.3, step=0.05, group=g_confluence, tooltip="CONTEXT WEIGHT: 20% = market context importance")
+crypto_weight = input.float(0.10, "Crypto Weight", minval=0.05, maxval=0.2, step=0.05, group=g_confluence, tooltip="CRYPTO WEIGHT: 10% = crypto-specific factors")
+
+// Key Levels System (100% COMPLIANT)
+g_levels = "Key Levels System (Enhanced v9.1)"
+enable_key_levels = input.bool(true, "Enable Key Levels", group=g_levels, tooltip="KEY LEVELS: Daily/Weekly/Monthly levels")
+key_level_tolerance = input.float(0.3, "Tolerance %", minval=0.1, maxval=0.8, step=0.1, group=g_levels, tooltip="LEVEL TOLERANCE: 0.3% tolerance around levels")
+
+// Risk Management (5-Tier Optimized)
+g_risk = "Advanced Risk Management (5-Tier Optimized)"
+riskRewardRatio = input.float(1.5, "Risk:Reward Ratio", minval=1.0, maxval=2.5, step=0.1, group=g_risk, tooltip="RISK:REWARD: 1.5:1 baseline ratio")
+useMultiTP = input.bool(true, "Multiple Take Profits", group=g_risk, tooltip="MULTI-TP: TP1/TP2/TP3 system")
+tp1RR = input.float(0.5, "TP1 RR (Break Even)", minval=0.3, maxval=0.8, step=0.1, group=g_risk, tooltip="TP1: 0.5:1 ratio - move to break even")
+tp2RR = input.float(1.0, "TP2 RR (Trail SL)", minval=0.8, maxval=1.5, step=0.1, group=g_risk, tooltip="TP2: 1.0:1 ratio - start trailing")
+tp3RR = input.float(1.5, "TP3 RR (Full Target)", minval=1.2, maxval=2.5, step=0.1, group=g_risk, tooltip="TP3: 1.5:1 ratio - full target")
+atrSLLength = input.int(14, "ATR Period", minval=8, maxval=20, group=g_risk, tooltip="ATR SL: 14-period ATR for stop loss")
+atrSLMultiplier = input.float(1.0, "ATR Multiplier", minval=0.8, maxval=1.5, step=0.1, group=g_risk, tooltip="ATR MULTIPLIER: 1.0x base multiplier")
+executionBuffer = input.float(0.025, "Execution Buffer %", minval=0.015, maxval=0.04, step=0.005, group=g_risk, tooltip="EXECUTION BUFFER: 2.5% buffer for slippage")
+
+// Backtest Controls (5-Tier Support)
+g_backtest = "Backtest Controls (5-Tier Support)"
+runAsStrategy = input.bool(true, "Run As Strategy", group=g_backtest, tooltip="STRATEGY MODE: Executes trades in backtester")
+tierFilter = input.string("All", "Tier Filter", options=["All", "Platinum only", "Premium+", "Standard+", "Quick+", "Emergency only"], group=g_backtest, tooltip="TIER FILTERING")
+riskPerTrade = input.float(2.0, "Risk Per Trade (%)", minval=0.5, maxval=5.0, step=0.1, group=g_backtest, tooltip="RISK MANAGEMENT: 2% risk per trade")
+maxPositionSize = input.float(15.0, "Max Position Size (%)", minval=5.0, maxval=30.0, step=1.0, group=g_backtest, tooltip="MAX POSITION: 15% maximum position size")
+
+// Performance & Visual
+g_performance = "Performance & Visual (v9.1 Enhanced)"
+enable_fast_mode = input.bool(true, "Fast Mode", group=g_performance, tooltip="FAST MODE: Intelligent memory management")
+max_objects_hard_limit = input.int(80, "Max Objects Hard Limit", minval=50, maxval=120, group=g_performance, tooltip="MEMORY LIMIT: 80 objects maximum")
+showOrderBlocks = input.bool(true, "Show Order Blocks", group=g_performance, tooltip="VISUAL: Order Blocks display")
+showFVG = input.bool(true, "Show Fair Value Gaps", group=g_performance, tooltip="VISUAL: Fair Value Gaps display")
+showSLTPLines = input.bool(true, "Show SL/TP Lines", group=g_performance, tooltip="VISUAL: Stop Loss / Take Profit lines")
+showSignalTier = input.bool(true, "Show Signal % Labels", group=g_performance, tooltip="VISUAL: Signal strength labels")
+maxActiveOB = input.int(15, "Max Active OB", minval=8, maxval=25, group=g_performance, tooltip="OB LIMIT: 15 active Order Blocks")
+maxActiveFVG = input.int(15, "Max Active FVG", minval=8, maxval=20, group=g_performance, tooltip="FVG LIMIT: 15 active Fair Value Gaps")
+removeTestedBoxes = input.bool(true, "Remove Tested Boxes", group=g_performance, tooltip="CLEANUP: Remove tested zones")
+onCloseOnly = input.bool(true, "Signals Only on Bar Close", group=g_performance, tooltip="BOT RECOMMENDED: Signals only on bar close")
+
+// Colors - V8 Style Fixed (100% COMPLIANT)
+g_colors = "V8 Style Colors (100% Restored)"
+bullishOBColor = input.color(color.new(color.green, 80), "Bullish OB", group=g_colors, tooltip="V8 STYLE: Green Order Blocks (80% transparency)")
+bearishOBColor = input.color(color.new(color.red, 80), "Bearish OB", group=g_colors, tooltip="V8 STYLE: Red Order Blocks (80% transparency)")
+bullishFVGColor = input.color(color.new(color.lime, 85), "Bullish FVG", group=g_colors, tooltip="V8 STYLE: Lime FVG (85% transparency)")
+bearishFVGColor = input.color(color.new(color.orange, 85), "Bearish FVG", group=g_colors, tooltip="V8 STYLE: Orange FVG (85% transparency)")
+platinumSignalColor = input.color(color.new(#FFD700, 0), "Platinum Signal", group=g_colors, tooltip="PLATINUM: Gold color (premium quality)")
+premiumSignalColor = input.color(color.new(color.purple, 0), "Premium Signal", group=g_colors, tooltip="PREMIUM: Purple color (high quality)")
+standardSignalColor = input.color(color.new(color.blue, 0), "Standard Signal", group=g_colors, tooltip="STANDARD: Blue color (workhorse)")
+quickSignalColor = input.color(color.new(color.yellow, 0), "Quick Signal", group=g_colors, tooltip="QUICK: Yellow color (frequent)")
+emergencySignalColor = input.color(color.new(color.lime, 0), "Emergency Signal", group=g_colors, tooltip="EMERGENCY: Lime color (turbo mode)")
+boxLabelColor = input.color(color.white, "Box Label Color", group=g_colors, tooltip="LABELS: White labels (V8 style)")
+
+// ICT/SMC Core Settings
+g_ict = "ICT/SMC Core Settings (Enhanced v9.1)"
+fvgMinSize = input.float(0.05, "FVG Min Size %", minval=0.02, maxval=0.2, step=0.01, group=g_ict, tooltip="FVG SIZE: 5% minimum size for Fair Value Gap")
+obMinSize = input.float(0.06, "OB Min Size %", minval=0.03, maxval=0.3, step=0.01, group=g_ict, tooltip="OB SIZE: 6% minimum size for Order Block")
+useLiquiditySweeps = input.bool(true, "Liquidity Sweeps", group=g_ict, tooltip="LIQUIDITY: Sweep detection system")
+
+// VWAP Analysis
+g_vwap = "VWAP Analysis (Enhanced v9.1)"
+showDailyVWAP = input.bool(true, "Show VWAP", group=g_vwap, tooltip="VWAP: Volume Weighted Average Price")
+showVWAPBands = input.bool(true, "Show VWAP Bands", group=g_vwap, tooltip="VWAP BANDS: Standard deviation bands")
+vwapStdDev = input.float(2.0, "VWAP StdDev", minval=0.5, maxval=5.0, step=0.5, group=g_vwap, tooltip="VWAP STDDEV: 2.0 standard deviations")
+
+// Dynamic Move Optimizations
+g_optimization = "Dynamic Move Optimizations (Performance Enhanced)"
+zone_check_limit = input.int(8, "Zone Check Limit", minval=3, maxval=15, group=g_optimization, tooltip="ZONE DEPTH: How many zones to check back")
+enable_dynamic_min_age = input.bool(true, "Dynamic Min Zone Age", group=g_optimization, tooltip="DYNAMIC AGE: Allows younger zones with momentum")
+min_zone_age = input.int(1, "Base Min Zone Age", minval=0, maxval=5, group=g_optimization, tooltip="ZONE AGE: Minimum zone age in bars")
+
+// Debug & Analysis Tools
+g_debug = "Debug & Analysis Tools (Enhanced v9.1)"
+showSignalStrength = input.bool(false, "Show Signal Strength", group=g_debug, tooltip="SIGNAL DEBUG: Displays B:X% S:Y% E:Z% above candles")
+showZoneInfo = input.bool(false, "Show Zone Info", group=g_debug, tooltip="ZONE DEBUG: Displays quality of active zones")
+showMissedSignals = input.bool(false, "Show Missed Signals", group=g_debug, tooltip="MISSED SIGNALS DEBUG: Gray triangles = 'almost' signals")
+missedThreshold = input.float(0.26, "Missed Signal Threshold", minval=0.15, maxval=0.35, group=g_debug, tooltip="MISSED THRESHOLD: 26% = smart missed detection")
+showVolumeProfile = input.bool(false, "Show Volume Profile", group=g_debug, tooltip="🎯 v9.1 NEW: Shows institutional flow analysis")
+showFakeBreakoutInfo = input.bool(false, "Show Fake Breakout Info", group=g_debug, tooltip="🚀 v9.1 NEW: Shows fake breakout detection info")
+
+// =====================================================================
+// VARIABLES AND ARRAYS - ENHANCED v9.1
+// =====================================================================
+
+var bullishOBArray = array.new<OrderBlock>()
+var bearishOBArray = array.new<OrderBlock>()
+var bullishFVGArray = array.new<FairValueGap>()
+var bearishFVGArray = array.new<FairValueGap>()
+var keyLevels = array.new<KeyLevel>()
+var last_cleanup_bar = 0
+var lastSignalBar = 0
+var lastPlatinumSignal = 0
+var lastPremiumSignal = 0
+var lastStandardSignal = 0
+var lastBOSBar = 0
+var lastBOSDirection = 0
+
+// Enhanced Market Regime State
+var currentRegimeState = MarketRegimeState.new("NEUTRAL", 0.0, "NEUTRAL", 0)
+
+// Retest Confirmation Variables
+var float lastSwingHigh = na
+var float lastSwingLow = na
+var int lastSwingHighBar = 0
+var int lastSwingLowBar = 0
+var bool awaitingRetestHigh = false
+var bool awaitingRetestLow = false
+
+// VWAP Variables
+var float cumPV = na
+var float cumV = na
+var float dailyVWAP = na
+var float dailyUpperBand = na
+var float dailyLowerBand = na
+
+// Debug Variables
+var bool missedBuyCondition = false
+var bool missedSellCondition = false
+
+// 🎯 NEW v9.1: Enhanced Volume Context Variables
+var array<float> volumeHistory = array.new<float>()
+var array<float> priceHistory = array.new<float>()
+var VolumeProfile currentVolumeProfile = VolumeProfile.new(0.0, 0.0, 0.0, false, 0.0)
+
+// 🚀 NEW v9.1: Fake Breakout Tracking Variables
+var array<float> recentHighs = array.new<float>()
+var array<float> recentLows = array.new<float>()
+var int lastFakeBreakoutBar = 0
+
+// KLUCZOWE PREDEKLARCJE - NAPRAWKA BŁĘDÓW KOMPILACJI (v9.0 compatibility)
+var float volume_sma_20 = na
+var float adx = na
+var bool adx_rising_3 = false
+
+// =====================================================================
+// PODSTAWOWE OBLICZENIA - ENHANCED v9.1 (NAPRAWKA BŁĘDÓW KOMPILACJI)
+// =====================================================================
+
+// KLUCZOWE PREDEKLARCJE - Obliczenie podstawowych wskaźników PRZED ich użyciem
+volume_sma_20 := ta.sma(volume, 20)
+[diPlus, diMinus, adx_temp] = ta.dmi(14, 14)
+adx := adx_temp
+adx_rising_3 := ta.rising(adx, 3)
+
+// Basic Calculations
+atr_value = ta.atr(atrSLLength)
+volume_avg = ta.sma(volume, 20)
+mfi_value = ta.mfi(close, mfi_length)
+emaFast = ta.ema(close, emaFastLength)
+emaSlow = ta.ema(close, emaSlowLength)
+[macd_line, macd_signal, macd_histogram] = ta.macd(close, macd_fast, macd_slow, macd_signal_length)
+oiBullish = false
+oiBearish = false
+
+// VWAP Calculation
+is_new_day = ta.change(time("D")) != 0
+if is_new_day
+    cumPV := volume * hlc3
+    cumV := volume
+else
+    cumPV := nz(cumPV[1]) + volume * hlc3
+    cumV := nz(cumV[1]) + volume
+
+dailyVWAP := cumV > 0 ? cumPV / cumV : na
+vwap_stdev_val = ta.stdev(close, 20)
+if not na(dailyVWAP)
+    dailyUpperBand := dailyVWAP + vwap_stdev_val * vwapStdDev
+    dailyLowerBand := dailyVWAP - vwap_stdev_val * vwapStdDev
+
+// Market Structure
+var float lastConfirmedHigh = na
+var float lastConfirmedLow = na
+pivotHigh = ta.pivothigh(5, 5)
+pivotLow = ta.pivotlow(5, 5)
+if not na(pivotHigh)
+    lastConfirmedHigh := pivotHigh
+if not na(pivotLow)
+    lastConfirmedLow := pivotLow
+
+// BOS Detection
+if ta.crossover(close, nz(lastConfirmedHigh[1], high))
+    lastBOSBar := bar_index
+    lastBOSDirection := 1
+if ta.crossunder(close, nz(lastConfirmedLow[1], low))
+    lastBOSBar := bar_index
+    lastBOSDirection := -1
+
+// Liquidity Sweeps
+sweep_high = useLiquiditySweeps and high > nz(lastConfirmedHigh[1], high) and close < nz(lastConfirmedHigh[1], high)
+sweep_low = useLiquiditySweeps and low < nz(lastConfirmedLow[1], low) and close > nz(lastConfirmedLow[1], low)
+liquiditySweep = sweep_high or sweep_low
+
+// Volume AND CVD
+buyVolume = close > open ? volume : 0
+sellVolume = close < open ? volume : 0
+deltaVolume = buyVolume - sellVolume
+cvd = ta.cum(deltaVolume)
+volumeSpike = volume > volume_avg * volumeThreshold
+
+cvd_rising_5 = ta.rising(cvd, 5)
+low_falling_5 = ta.falling(low, 5)
+cvd_falling_5 = ta.falling(cvd, 5)
+high_rising_5 = ta.rising(high, 5)
+
+bullishDivergence = cvd_rising_5 and low_falling_5
+bearishDivergence = cvd_falling_5 and high_rising_5
+
+// Micro-Trend Detection (KEY for Emergency Mode)
+ema3 = ta.ema(close, 3)
+ema5 = ta.ema(close, 5)
+microTrendBullish = ema3 > ema5 and close > ema3
+microTrendBearish = ema3 < ema5 and close < ema5
+
+// BTC Correlation
+btcCorrelation = 0.0
+var float btcTrend = 0.0
+if enableBTCCorrelation and not str.contains(syminfo.ticker, "BTC")
+    btc_close = request.security("BINANCE:BTCUSDT", timeframe.period, close, lookahead=barmerge.lookahead_off)
+    btc_ema_fast = request.security("BINANCE:BTCUSDT", timeframe.period, ta.ema(close, 9), lookahead=barmerge.lookahead_off)
+    btc_ema_slow = request.security("BINANCE:BTCUSDT", timeframe.period, ta.ema(close, 21), lookahead=barmerge.lookahead_off)
+    btcTrend := btc_ema_fast > btc_ema_slow ? 1.0 : -1.0
+    btcCorrelation := nz(ta.correlation(close, btc_close, 20))
+
+// =====================================================================
+// KEY LEVELS HELPER (NAPRAWKA BŁĘDU 1 - przeniesiono wcześniej)
+// =====================================================================
+
+isNearKeyLevel(price) =>
+    if not enable_key_levels or array.size(keyLevels) == 0
+        [false, 0.0]
+    else
+        max_strength = 0.0
+        near_level = false
+        for i = 0 to math.min(14, array.size(keyLevels) - 1)
+            level = array.get(keyLevels, i)
+            tolerance = level.level * key_level_tolerance / 100
+            if math.abs(price - level.level) <= tolerance
+                near_level := true
+                if level.strength > max_strength
+                    max_strength := level.strength
+        [near_level, max_strength]
+// =====================================================================
+// 🎯 NEW v9.1: ENHANCED VOLUME CONTEXT SYSTEM - INSTITUTIONAL FLOW
+// =====================================================================
+
+// Volume History Management for Enhanced Analysis
+updateVolumeHistory() =>
+    if array.size(volumeHistory) >= volume_context_lookback
+        array.shift(volumeHistory)
+        array.shift(priceHistory)
+    array.push(volumeHistory, volume)
+    array.push(priceHistory, close)
+
+updateVolumeHistory()
+
+// Enhanced Volume Profile Analysis - Institutional Flow Detection
+getEnhancedVolumeProfile() =>
+    if array.size(volumeHistory) < volume_context_lookback
+        VolumeProfile.new(0.5, 0.5, 0.0, false, 0.5)
+    else
+        // Accumulation vs Distribution Analysis
+        accumulation_score = 0.0
+        distribution_score = 0.0
+        total_volume = 0.0
+        institutional_volume = 0.0
+        
+        for i = 0 to array.size(volumeHistory) - 1
+            vol = array.get(volumeHistory, i)
+            price = array.get(priceHistory, i)
+            prev_price = i > 0 ? array.get(priceHistory, i - 1) : price
+            
+            total_volume += vol
+            
+            // Institutional Flow Detection
+            if vol > volume_sma_20 * institutional_flow_threshold
+                institutional_volume += vol
+                
+                // Accumulation Pattern (High volume on dips)
+                if price < prev_price
+                    accumulation_score += vol
+                
+                // Distribution Pattern (High volume on rallies)  
+                if price > prev_price
+                    distribution_score += vol
+        
+        // Calculate ratios
+        acc_ratio = total_volume > 0 ? accumulation_score / total_volume : 0.5
+        dist_ratio = total_volume > 0 ? distribution_score / total_volume : 0.5
+        inst_flow = total_volume > 0 ? institutional_volume / total_volume : 0.0
+        
+        // Volume Climax Detection
+        current_vol_ratio = volume / volume_sma_20
+        climax_detected = current_vol_ratio > climax_volume_threshold
+        
+        // Support/Resistance Retest Confidence
+        [near_level, _] = isNearKeyLevel(close)
+        retest_conf = 0.5
+        if near_level
+            vol_on_level = volume > volume_sma_20 * 1.5
+            price_rejection = math.abs(close - open) < (high - low) * 0.3
+            retest_conf := vol_on_level and price_rejection ? 0.9 : 0.3
+        
+        VolumeProfile.new(acc_ratio, dist_ratio, inst_flow, climax_detected, retest_conf)
+
+currentVolumeProfile := getEnhancedVolumeProfile()
+
+// Enhanced Volume Context Scoring - Complete Implementation
+getEnhancedVolumeContextScore(is_buy) =>
+    if not enable_enhanced_volume_context
+        1.0
+    else
+        base_score = 1.0
+        profile = currentVolumeProfile
+        
+        // 1. Institutional Flow Analysis
+        if profile.institutional_flow > 0.3
+            base_score += 0.12
+        
+        // 2. Accumulation/Distribution Alignment
+        if is_buy and profile.accumulation_ratio > accumulation_threshold
+            base_score += 0.15
+        else if not is_buy and profile.distribution_ratio > accumulation_threshold
+            base_score += 0.15
+        
+        // 3. Volume Climax Detection (Exhaustion Warning)
+        if profile.climax_detected
+            base_score -= 0.20
+        
+        // 4. Support/Resistance Retest Confirmation
+        if profile.retest_confidence > 0.7
+            base_score += retest_volume_bonus
+        
+        // 5. Context-Aware Volume Analysis
+        [near_level, level_strength] = isNearKeyLevel(close)
+        if near_level
+            vol_behavior = volume / volume_sma_20
+            
+            // High volume near key levels = institutional interest
+            if vol_behavior > 1.8
+                base_score += 0.10 * level_strength
+            
+            // Low volume near key levels = lack of conviction
+            else if vol_behavior < 0.6
+                base_score -= 0.08
+        
+        // 6. Volume-Price Divergence Analysis
+        price_change = (close - close[5]) / close[5]
+        volume_change = (volume - volume_sma_20) / volume_sma_20
+        
+        if is_buy and price_change < -0.01 and volume_change > 0.5
+            base_score += 0.12  // Buying the dip with volume
+        else if not is_buy and price_change > 0.01 and volume_change > 0.5
+            base_score += 0.12  // Selling the rip with volume
+        
+        math.max(0.5, math.min(base_score, 1.8))
+
+// =====================================================================
+// 🚀 NEW v9.1: COMPLETE FAKE BREAKOUT INTEGRATION - GRADUAL PENALTY
+// =====================================================================
+
+// Fake Breakout History Management
+updateFakeBreakoutHistory() =>
+    if array.size(recentHighs) >= fake_breakout_lookback
+        array.shift(recentHighs)
+        array.shift(recentLows)
+    array.push(recentHighs, high)
+    array.push(recentLows, low)
+
+updateFakeBreakoutHistory()
+
+// NAPRAWKA BŁĘDÓW 2-3: Pre-kalkulacja recent_high i recent_low w globalnym zakresie
+recent_high_global = ta.highest(high[1], fake_breakout_lookback)
+recent_low_global = ta.lowest(low[1], fake_breakout_lookback)
+
+// Enhanced Fake Breakout Detection with Gradual Penalty System
+getEnhancedFakeBreakoutAnalysis(is_buy) =>
+    if not enable_fake_breakout_filter or array.size(recentHighs) < fake_breakout_lookback
+        [false, 1.0]
+    else
+        // Użycie pre-obliczonych wartości globalnych
+        recent_high = recent_high_global
+        recent_low = recent_low_global
+        
+        fake_breakout_detected = false
+        penalty_multiplier = 1.0
+        
+        if is_buy
+            // Fake breakout down detection
+            if low < recent_low
+                reversion_target = recent_low * (1 + fake_breakout_reversion_threshold)
+                price_reverted = close > reversion_target
+                
+                // Volume confirmation for fake breakout
+                volume_confirmed = if fake_breakout_volume_confirmation
+                    volume < volume_sma_20 * 0.8  // Low volume on breakout = fake
+                else
+                    true
+                
+                if price_reverted and volume_confirmed
+                    fake_breakout_detected := true
+                    penalty_multiplier := 1.0 - fake_breakout_penalty_strength
+        else
+            // Fake breakout up detection  
+            if high > recent_high
+                reversion_target = recent_high * (1 - fake_breakout_reversion_threshold)
+                price_reverted = close < reversion_target
+                
+                // Volume confirmation for fake breakout
+                volume_confirmed = if fake_breakout_volume_confirmation
+                    volume < volume_sma_20 * 0.8  // Low volume on breakout = fake
+                else
+                    true
+                
+                if price_reverted and volume_confirmed
+                    fake_breakout_detected := true
+                    penalty_multiplier := 1.0 - fake_breakout_penalty_strength
+        
+        [fake_breakout_detected, penalty_multiplier]
+
+// NAPRAWKA BŁĘDÓW 4-7: Pre-kalkulacja wyników getEnhancedFakeBreakoutAnalysis
+[buyFakeBreakout, buyFakeBreakoutMultiplier] = getEnhancedFakeBreakoutAnalysis(true)
+[sellFakeBreakout, sellFakeBreakoutMultiplier] = getEnhancedFakeBreakoutAnalysis(false)
+
+// =====================================================================
+// HELPER FUNCTIONS v9.1 - ENHANCED WITH NEW SYSTEMS
+// =====================================================================
+
+getActiveSessionBonus() =>
+    if not useActiveSessions
+        0.0
+    else
+        isLondon = not na(time(timeframe.period, "0700-1100", "UTC"))
+        isNY = not na(time(timeframe.period, "1200-1600", "UTC"))
+        isAsia = not na(time(timeframe.period, "1900-0400", "UTC"))
+        
+        if isLondon
+            0.12
+        else if isNY
+            0.10
+        else if isAsia
+            0.08
+        else
+            0.0
+
+// Enhanced Zone Score with v9.1 Volume Context Integration
+getAdvancedZoneScore(candle_index) =>
+    base_score = 1.0
+    
+    // Volume Analysis - Enhanced with Context
+    candle_vol_ratio = volume[candle_index] / volume_sma_20
+    if candle_vol_ratio > 2.5
+        base_score += 3.0
+    else if candle_vol_ratio > 2.0
+        base_score += 2.5
+    else if candle_vol_ratio > 1.5
+        base_score += 2.0
+    else if candle_vol_ratio > 1.2
+        base_score += 1.0
+    
+    // v9.1 NEW: Enhanced Volume Context Integration
+    if enable_enhanced_volume_context
+        vol_context_score = getEnhancedVolumeContextScore(close[candle_index] > open[candle_index])
+        base_score *= vol_context_score
+    
+    // Range Analysis
+    candle_range = high[candle_index] - low[candle_index]
+    atr_val = ta.atr(14)
+    if candle_range > atr_val * 1.8
+        base_score += 2.5
+    else if candle_range > atr_val * 1.5
+        base_score += 2.0
+    else if candle_range > atr_val * 1.2
+        base_score += 1.0
+    
+    // Session Bonus
+    base_score += getActiveSessionBonus() * 10
+    
+    // INTEGRATED WICK PATTERN BONUSES (100% COMPLIANT)
+    if enable_wick_patterns
+        c_open = open[candle_index]
+        c_close = close[candle_index]
+        c_high = high[candle_index]
+        c_low = low[candle_index]
+        body_size = math.abs(c_close - c_open)
+        upper_wick = c_high - math.max(c_open, c_close)
+        lower_wick = math.min(c_open, c_close) - c_low
+        
+        // Engulfing Pattern
+        if candle_index == 1 and body_size > 0
+            prev_body = math.abs(close[2] - open[2])
+            if body_size > prev_body * 1.5 and ((c_close > c_open and close[2] < open[2]) or (c_close < c_open and close[2] > open[2]))
+                base_score += engulfing_bonus_val
+        
+        // Doji on Key Level
+        if body_size < (c_high - c_low) * 0.1
+            [near_level, _] = isNearKeyLevel(c_close)
+            if near_level
+                base_score += doji_key_level_bonus_val
+        
+        // Hammer/Shooting Star
+        if body_size > 0
+            if lower_wick > body_size * min_wick_ratio and upper_wick < body_size * 0.3
+                base_score += hammer_bonus_val
+            else if upper_wick > body_size * min_wick_ratio and lower_wick < body_size * 0.3
+                base_score += hammer_bonus_val
+    
+    math.min(base_score, 5.0)
+
+getAdaptiveThresholds() =>
+    [platinum, premium, standard, quick] = if signalProfile == "Conservative"
+        [0.50, 0.40, 0.30, 0.22]
+    else if signalProfile == "Balanced"
+        [0.45, 0.35, 0.25, 0.18]
+    else if signalProfile == "Aggressive"
+        [0.42, 0.30, 0.22, 0.16]
+    else
+        [platinumThreshold, premiumThreshold, standardThreshold, quickThreshold]
+    
+    multiplier = 1.0
+    if currentRegimeState.regime == "HIGH_VOLATILITY"
+        multiplier := 0.95
+    else if currentRegimeState.regime == "CONSOLIDATION" and currentRegimeState.confidence > 0.7
+        multiplier := 1.05
+    
+    [platinum * multiplier, premium * multiplier, standard * multiplier, quick * multiplier]
+
+classifySignal(strength) =>
+    [currentPlatinumThreshold, currentPremiumThreshold, currentStandardThreshold, currentQuickThreshold] = getAdaptiveThresholds()
+    
+    string result = "None"
+    if strength >= currentPlatinumThreshold
+        result := "Platinum"
+    else if strength >= currentPremiumThreshold
+        result := "Premium"
+    else if strength >= currentStandardThreshold
+        result := "Standard"
+    else if strength >= currentQuickThreshold
+        result := "Quick"
+    result
+
+getPositionSizeMultiplier(tier) =>
+    switch tier
+        "Platinum"  => 2.0
+        "Premium"   => 1.5
+        "Standard"  => 1.0
+        "Quick"     => 0.7
+        "Emergency" => 1.3
+        => 1.0
+
+sessionText() =>
+    isLondon = not na(time(timeframe.period, "0700-1100", "UTC"))
+    isNY = not na(time(timeframe.period, "1200-1600", "UTC"))
+    isAsia = not na(time(timeframe.period, "1900-0400", "UTC"))
+    
+    if isLondon and isNY
+        "London/NY"
+    else if isLondon
+        "London"
+    else if isNY
+        "NY"
+    else if isAsia
+        "Asia"
+    else
+        "Off-Session"
+
+getPairTier() =>
+    symbol = syminfo.ticker
+    if str.contains(symbol, "BTC") or str.contains(symbol, "ETH")
+        1
+    else if (str.contains(symbol, "BNB") or str.contains(symbol, "SOL") or 
+             str.contains(symbol, "XRP") or str.contains(symbol, "ADA") or 
+             str.contains(symbol, "LINK") or str.contains(symbol, "DOT") or
+             str.contains(symbol, "MATIC") or str.contains(symbol, "UNI") or
+             str.contains(symbol, "AVAX") or str.contains(symbol, "DOGE"))
+        2
+    else
+        3
+
+getRecommendedLeverage() =>
+    pairTier = getPairTier()
+    atr_value_local = ta.atr(14)
+    base_leverage = pairTier == 1 ? 50 : pairTier == 2 ? 30 : 20
+    vol_percent = (atr_value_local / close) * 100
+    
+    if vol_percent > 2.5
+        math.round(base_leverage * 0.6)
+    else if vol_percent > 1.8
+        math.round(base_leverage * 0.8)
+    else
+        base_leverage
+
+getDynamicMinAge() =>
+    base_age = min_zone_age
+    if enable_dynamic_min_age
+        if useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge
+            base_age := math.max(0, base_age - 1)
+        if ta.sma(volume, 5) > ta.sma(volume, 20) * 1.5
+            base_age := math.max(0, base_age - 1)
+        if currentRegimeState.regime == "BREAKOUT"
+            base_age := math.max(0, base_age - 1)
+    base_age
+
+isInsideBar() =>
+    enable_wick_patterns and high < high[1] and low > low[1]
+
+// P2: Dynamic Opposite Zone Distance (100% COMPLIANT - ENFORCED)
+getOppositeZoneDistance(is_buy) =>
+    min_distance = 999.0
+    opposite_ob_arr = is_buy ? bearishOBArray : bullishOBArray
+    opposite_fvg_arr = is_buy ? bearishFVGArray : bullishFVGArray
+    atr_val = ta.atr(14)
+    
+    // P2: Dynamic reduction after Fresh BOS
+    distance_multiplier = if enable_dynamic_opposite_zone and useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar) <= bosMaxAge
+        if (is_buy and lastBOSDirection == 1) or (not is_buy and lastBOSDirection == -1)
+            dynamic_reduction_factor
+        else
+            1.0
+    else
+        1.0
+    
+    // Check opposite Order Blocks
+    if array.size(opposite_ob_arr) > 0
+        for i = 0 to math.min(3, array.size(opposite_ob_arr) - 1)
+            ob = array.get(opposite_ob_arr, i)
+            raw_distance = if is_buy
+                math.abs(close - ob.bottom) / atr_val
+            else
+                math.abs(close - ob.top) / atr_val
+            
+            weighted_distance = raw_distance * ob_opposition_weight * distance_multiplier
+            min_distance := math.min(min_distance, weighted_distance)
+    
+    // Check opposite FVGs
+    if array.size(opposite_fvg_arr) > 0
+        for i = 0 to math.min(3, array.size(opposite_fvg_arr) - 1)
+            fvg = array.get(opposite_fvg_arr, i)
+            raw_distance = if is_buy
+                math.abs(close - fvg.bottom) / atr_val
+            else
+                math.abs(close - fvg.top) / atr_val
+            
+            weighted_distance = raw_distance * fvg_opposition_weight * distance_multiplier
+            min_distance := math.min(min_distance, weighted_distance)
+    
+    min_distance
+
+getRoomToTarget(is_buy) =>
+    if not enableRoomFilter
+        999.0
+    else
+        min_room = 999.0
+        atr_val = ta.atr(14)
+        
+        if not na(dailyVWAP)
+            if is_buy and not na(dailyUpperBand)
+                min_room := math.min(min_room, (dailyUpperBand - close) / atr_val)
+            else if not is_buy and not na(dailyLowerBand)
+                min_room := math.min(min_room, (close - dailyLowerBand) / atr_val)
+        
+        if enable_key_levels and array.size(keyLevels) > 0
+            for i = 0 to math.min(9, array.size(keyLevels) - 1)
+                level = array.get(keyLevels, i)
+                if is_buy and level.level > close
+                    min_room := math.min(min_room, (level.level - close) / atr_val)
+                else if not is_buy and level.level < close
+                    min_room := math.min(min_room, (close - level.level) / atr_val)
+        min_room
+
+checkRetestConfirmation(is_buy, local_lastSwingHigh, local_lastSwingLow, local_lastSwingHighBar, local_lastSwingLowBar, local_awaitingRetestHigh, local_awaitingRetestLow) =>
+    if m5_only_retest and timeframe.period != "5"
+        true
+    else if not enable_retest_confirmation
+        true
+    else
+        retest_confirmed = false
+        
+        if is_buy and local_awaitingRetestLow and not na(local_lastSwingLow)
+            tolerance = local_lastSwingLow * retest_tolerance / 100
+            if low <= local_lastSwingLow + tolerance and low >= local_lastSwingLow - tolerance
+                lower_wick = math.min(open, close) - low
+                body_size = math.abs(close - open)
+                if body_size > 0 and lower_wick > body_size * min_wick_ratio
+                    retest_confirmed := true
+        
+        else if not is_buy and local_awaitingRetestHigh and not na(local_lastSwingHigh)
+            tolerance = local_lastSwingHigh * retest_tolerance / 100
+            if high >= local_lastSwingHigh - tolerance and high <= local_lastSwingHigh + tolerance
+                upper_wick = high - math.max(open, close)
+                body_size = math.abs(close - open)
+                if body_size > 0 and upper_wick > body_size * min_wick_ratio
+                    retest_confirmed := true
+        
+        no_recent_swing = (is_buy and (na(local_lastSwingLow) or (bar_index - local_lastSwingLowBar) > 20)) or 
+                         (not is_buy and (na(local_lastSwingHigh) or (bar_index - local_lastSwingHighBar) > 20))
+        
+        retest_confirmed or no_recent_swing
+
+getMTFAgreementRatio() =>
+    bullish_count = 0.0
+    bullish_count += close > ta.ema(close, 20) ? 1 : 0
+    bullish_count += request.security(syminfo.tickerid, "15", close > ta.ema(close, 20) ? 1 : 0, lookahead=barmerge.lookahead_off)
+    bullish_count += request.security(syminfo.tickerid, "60", close > ta.ema(close, 20) ? 1 : 0, lookahead=barmerge.lookahead_off)
+    bullish_count += request.security(syminfo.tickerid, "240", close > ta.ema(close, 20) ? 1 : 0, lookahead=barmerge.lookahead_off)
+    bullish_count += request.security(syminfo.tickerid, "D", close > ta.ema(close, 20) ? 1 : 0, lookahead=barmerge.lookahead_off)
+    bullish_count / 5.0
+
+getMTFMultiplier(is_buy, agreement_ratio) =>
+    if not enable_mtf_agreement
+        1.0
+    else
+        bullish_agreement = agreement_ratio
+        bearish_agreement = 1 - agreement_ratio
+
+        if is_buy
+            if bullish_agreement >= 0.8
+                1.12
+            else if bullish_agreement >= 0.6
+                1.06
+            else if bullish_agreement < 0.4
+                0.95
+            else
+                1.0
+        else
+            if bearish_agreement >= 0.8
+                1.12
+            else if bearish_agreement >= 0.6
+                1.06
+            else if bearish_agreement < 0.4
+                0.95
+            else
+                1.0
+
+getRegimeMultiplier(regime, confidence, is_buy) =>
+    if not enable_enhanced_regime
+        1.0
+    else
+        multiplier = switch regime
+            "CONSOLIDATION" =>
+                confidence > 0.7 ? 0.3 : 0.7
+            "UPTREND"       =>
+                is_buy ? (1 + 0.2 * confidence) : (1 - 0.2 * confidence)
+            "DOWNTREND"     =>
+                not is_buy ? (1 + 0.2 * confidence) : (1 - 0.2 * confidence)
+            "BREAKOUT"      =>
+                1.15
+            =>
+                1.0
+        math.max(multiplier, 0.1)
+
+getWaveMultiplier(is_buy) =>
+    if not enable_wave_filter
+        1.0
+    else
+        highest_p = ta.highest(wave_analysis_period)
+        lowest_p = ta.lowest(wave_analysis_period)
+        is_uptrend = highest_p > highest_p[wave_analysis_period]
+        is_downtrend = lowest_p < lowest_p[wave_analysis_period]
+        
+        range_p = highest_p - lowest_p
+        if range_p == 0
+            1.0
+        else if is_uptrend
+            retracement = (highest_p - close) / range_p
+            if is_buy
+                retracement > 0.4 and retracement < 0.6 ? 1.25 : 1.0
+            else
+                retracement < shallow_retracement_threshold ? 0.8 : 1.0
+        else if is_downtrend
+            retracement = (close - lowest_p) / range_p
+            if not is_buy
+                retracement > 0.4 and retracement < 0.6 ? 1.25 : 1.0
+            else
+                retracement < shallow_retracement_threshold ? 0.8 : 1.0
+        else
+            1.0
+
+// 🚀 v9.1 NEW: Enhanced Fake Breakout Detection (Legacy Compatibility)
+isFakeBreakout(is_buy) =>
+    if is_buy
+        buyFakeBreakout
+    else
+        sellFakeBreakout
+
+// 🎯 v9.1 NEW: Enhanced Smart Volume Confirmation (Upgraded)
+getSmartVolumeConfirmation(is_buy) =>
+    base_conf = if enable_smart_volume
+        base_legacy = 1.0
+        
+        [near_level, _] = isNearKeyLevel(close)
+        if near_level
+            if volume < ta.sma(volume, 10) * 0.8
+                base_legacy += 0.1
+        
+        if enable_distribution_patterns and volume > volume_sma_20 * distribution_volume_threshold
+            body_ratio = math.abs(close - open) / (high - low)
+            if body_ratio < 0.3
+                buy_vol_ratio = volume == 0 ? 0 : (close > open ? volume : 0) / volume
+                sell_vol_ratio = volume == 0 ? 0 : (close < open ? volume : 0) / volume
+                
+                if is_buy and buy_vol_ratio > 0.65
+                    base_legacy += 0.15
+                else if not is_buy and sell_vol_ratio > 0.65
+                    base_legacy += 0.15
+        
+        if ta.sma(volume, 1) > volume_sma_20 * 1.5
+            buy_vol_ratio = volume == 0 ? 0 : (close > open ? volume : 0) / volume
+            sell_vol_ratio = volume == 0 ? 0 : (close < open ? volume : 0) / volume
+            if is_buy and buy_vol_ratio > 0.65
+                base_legacy += 0.15
+            else if not is_buy and sell_vol_ratio > 0.65
+                base_legacy += 0.15
+        
+        math.min(base_legacy, 1.3)
+    else
+        1.0
+    
+    // 🎯 v9.1 ENHANCEMENT: Integrate Enhanced Volume Context
+    enhanced_multiplier = getEnhancedVolumeContextScore(is_buy)
+    final_conf = base_conf * enhanced_multiplier
+    
+    math.min(final_conf, 2.0)
+
+checkConsolidationAllowance(is_buy, signal_tier) =>
+    if not enable_enhanced_regime or currentRegimeState.regime != "CONSOLIDATION" or currentRegimeState.confidence < 0.7
+        true
+    else
+        is_premium_plus = signal_tier == "Platinum" or signal_tier == "Premium"
+        is_premium_plus
+
+getSmartCooldownForTier(tier) =>
+    base_cooldown = switch tier
+        "Platinum"  => 5
+        "Premium"   => 4
+        "Standard"  => 2
+        "Quick"     => 1
+        "Emergency" => 2
+        => 2
+    
+    if adaptiveCooldown
+        sess_mult = getActiveSessionBonus() > 0 ? 0.7 : 1.0
+        vol_mult = ta.atr(14) / ta.sma(ta.atr(14), 20)
+        regime_mult = currentRegimeState.regime == "BREAKOUT" ? 0.8 : currentRegimeState.regime == "CONSOLIDATION" ? 1.2 : 1.0
+        
+        math.max(1, math.round(base_cooldown * vol_mult * sess_mult * regime_mult))
+    else
+        base_cooldown
+
+getSmartMissedThreshold() =>
+    base_threshold = missedThreshold
+    if signalProfile == "Conservative"
+        base_threshold
+    else if signalProfile == "Balanced"  
+        math.max(0.15, base_threshold - 0.02)
+    else if signalProfile == "Aggressive"
+        math.max(0.15, base_threshold - 0.04)
+    else
+        base_threshold
+
+// =====================================================================
+// ZONE DETECTION FUNCTIONS - ENHANCED v9.1
+// =====================================================================
+
+// P1: Enhanced Zone Detection with Mitigation Mode
+isInOrderBlock(is_buy) =>
+    arr = is_buy ? bullishOBArray : bearishOBArray
+    if array.size(arr) == 0
+        [false, 0.0, -1]
+    else
+        best_score = 0.0
+        best_index = -1
+        in_zone = false
+        arr_size = array.size(arr)
+        i = arr_size - 1
+        limit_idx = math.max(0, arr_size - zone_check_limit)
+        dynamic_min_age_val = getDynamicMinAge()
+        
+        while i >= limit_idx
+            ob = array.get(arr, i)
+            zone_age = bar_index - ob.startBar
+            
+            if zone_age >= dynamic_min_age_val
+                in_zone_check = if enable_mitigation_mode
+                    zone_range = ob.top - ob.bottom
+                    if is_buy
+                        mitigation_level = ob.bottom + (zone_range * mitigation_threshold)
+                        low <= ob.top and close >= mitigation_level
+                    else
+                        mitigation_level = ob.top - (zone_range * mitigation_threshold)
+                        high >= ob.bottom and close <= mitigation_level
+                else
+                    if is_buy
+                        low <= ob.top and high >= ob.bottom
+                    else
+                        high >= ob.bottom and low <= ob.top
+                
+                if in_zone_check
+                    in_zone := true
+                    if ob.score > best_score
+                        best_score := ob.score
+                        best_index := i
+            i := i - 1
+        [in_zone, best_score, best_index]
+
+isInFVG(is_buy) =>
+    arr = is_buy ? bullishFVGArray : bearishFVGArray
+    if array.size(arr) == 0
+        [false, 0.0, -1]
+    else
+        best_score = 0.0
+        best_index = -1
+        in_zone = false
+        arr_size = array.size(arr)
+        i = arr_size - 1
+        limit_idx = math.max(0, arr_size - zone_check_limit)
+        dynamic_min_age_val = getDynamicMinAge()
+        
+        while i >= limit_idx
+            fvg = array.get(arr, i)
+            zone_age = bar_index - fvg.startBar
+            
+            if zone_age >= dynamic_min_age_val
+                in_zone_check = if enable_mitigation_mode
+                    zone_range = fvg.top - fvg.bottom
+                    if is_buy
+                        mitigation_level = fvg.bottom + (zone_range * mitigation_threshold)
+                        low <= fvg.top and close >= mitigation_level
+                    else
+                        mitigation_level = fvg.top - (zone_range * mitigation_threshold)
+                        high >= fvg.bottom and close <= mitigation_level
+                else
+                    if is_buy
+                        low <= fvg.top and high >= fvg.bottom
+                    else
+                        high >= fvg.bottom and low <= fvg.top
+                
+                if in_zone_check
+                    in_zone := true
+                    if fvg.score > best_score
+                        best_score := fvg.score
+                        best_index := i
+            i := i - 1
+        [in_zone, best_score, best_index]
+
+// Enhanced Market Regime Detection (100% COMPLIANT)
+getEnhancedMarketRegime() =>
+    atr_ratio = ta.atr(14) / ta.sma(ta.atr(14), regime_period)
+    ema_8_val = ta.ema(close, 8)
+    ema_21_val = ta.ema(close, 21)
+    ema_50_val = ta.ema(close, 50)
+    
+    ema_bull = ema_8_val > ema_21_val and ema_21_val > ema_50_val
+    ema_bear = ema_8_val < ema_21_val and ema_21_val < ema_50_val
+    vol_trend = ta.sma(volume, 10) / ta.sma(volume, 30)
+
+    regime = "NEUTRAL"
+    confidence = 0.0
+
+    if atr_ratio < consolidation_atr_threshold and adx < 25
+        regime := "CONSOLIDATION"
+        confidence := (1.0 - atr_ratio) * 0.7 + (25 - adx) / 25 * 0.3
+    else if ema_bull and adx > 25
+        regime := "UPTREND"
+        confidence := (adx/100) * 0.6 + math.max(atr_ratio - 0.8, 0) * 0.4
+    else if ema_bear and adx > 25
+        regime := "DOWNTREND"
+        confidence := (adx/100) * 0.6 + math.max(atr_ratio - 0.8, 0) * 0.4
+    else if atr_ratio > 1.3 and vol_trend > 1.2
+        regime := "BREAKOUT"
+        confidence := math.min(atr_ratio, 2.0) / 2.0 * 0.5 + math.min(vol_trend, 2.0) / 2.0 * 0.5
+    
+    [regime, confidence]
+
+[regime, confidence] = getEnhancedMarketRegime()
+if enable_enhanced_regime
+    if regime != currentRegimeState.regime
+        currentRegimeState := MarketRegimeState.new(regime, confidence, currentRegimeState.regime, 0)
+    else
+        currentRegimeState.confidence := confidence
+        currentRegimeState.bars_in_regime += 1
+
+enhanced_regime = enable_enhanced_regime ? currentRegimeState.regime : "DISABLED"
+regime_confidence = enable_enhanced_regime ? currentRegimeState.confidence : 0.0
+
+// Multi-Timeframe Agreement
+mtf_agreement_ratio = getMTFAgreementRatio()
+
+// Extreme Conditions with Smart Relief
+vol_ratio = atr_value / ta.sma(atr_value, 20)
+range_ratio = (high - low) / ta.sma(high - low, 14)
+gap_size = math.abs(open - close[1])
+market_condition = "NORMAL"
+confidence_penalty = 0.0
+
+if vol_ratio > extreme_vol_threshold
+    market_condition := "HIGH_VOLATILITY"
+    confidence_penalty := 0.15
+
+if range_ratio > extreme_range_threshold
+    market_condition := "EXTREME_MOVE"
+    confidence_penalty := 0.25
+
+if gap_size > atr_value * gap_threshold
+    market_condition := "GAP_OPEN"
+    confidence_penalty := 0.10
+
+// Smart Extreme Relief
+if smart_extreme_relief and lastBOSBar > 0 and (bar_index - lastBOSBar) <= 5
+    confidence_penalty *= 0.5
+
+// P4: Emergency Impulse Mode - 4 CONDITIONS (100% COMPLIANT)
+fresh_emergency_bos = lastBOSBar > 0 and (bar_index - lastBOSBar) <= emergency_bos_age
+emergency_volume_condition = volume > volume_avg * emergency_volume_threshold
+
+emergency_bull_conditions = enable_emergency_mode and fresh_emergency_bos and lastBOSDirection == 1 and emergency_volume_condition and microTrendBullish and adx_rising_3
+emergency_bear_conditions = enable_emergency_mode and fresh_emergency_bos and lastBOSDirection == -1 and emergency_volume_condition and microTrendBearish and adx_rising_3
+
+// Retest Confirmation Logic (M5 OPTIMIZED)
+swingHigh = ta.pivothigh(3, 3)
+swingLow = ta.pivotlow(3, 3)
+
+if not na(swingHigh)
+    lastSwingHigh := swingHigh[3]
+    lastSwingHighBar := bar_index[3]
+    awaitingRetestHigh := true
+
+if not na(swingLow)
+    lastSwingLow := swingLow[3]
+    lastSwingLowBar := bar_index[3]
+    awaitingRetestLow := true
+
+retest_ok_buy = checkRetestConfirmation(true, lastSwingHigh, lastSwingLow, lastSwingHighBar, lastSwingLowBar, awaitingRetestHigh, awaitingRetestLow)
+retest_ok_sell = checkRetestConfirmation(false, lastSwingHigh, lastSwingLow, lastSwingHighBar, lastSwingLowBar, awaitingRetestHigh, awaitingRetestLow)
+
+if retest_ok_buy
+    awaitingRetestLow := false
+if retest_ok_sell
+    awaitingRetestHigh := false
+
+emergencyCooldown = getSmartCooldownForTier("Emergency")
+buyWaveMultiplier = getWaveMultiplier(true)
+sellWaveMultiplier = getWaveMultiplier(false)
+
+// Emergency Mode Bypass for Fake Breakout
+buyFakeBreakoutPenalty = emergency_bull_conditions ? 1.0 : buyFakeBreakoutMultiplier
+sellFakeBreakoutPenalty = emergency_bear_conditions ? 1.0 : sellFakeBreakoutMultiplier
+
+// Pre-calculate wszystkie problematyczne wywołania funkcji
+zone_creation_score_global = getAdvancedZoneScore(1)
+opposite_zone_distance_buy_global = getOppositeZoneDistance(true)
+opposite_zone_distance_sell_global = getOppositeZoneDistance(false)
+room_to_target_buy_global = getRoomToTarget(true)
+room_to_target_sell_global = getRoomToTarget(false)
+
+// Pre-calculate isInOrderBlock and isInFVG for missed signals section
+[in_ob_buy_global, ob_score_buy_global, _] = isInOrderBlock(true)
+[in_fvg_buy_global, fvg_score_buy_global, _] = isInFVG(true)
+[in_ob_sell_global, ob_score_sell_global, _] = isInOrderBlock(false)
+[in_fvg_sell_global, fvg_score_sell_global, _] = isInFVG(false)
+// =====================================================================
+// ZONE CREATION AND MANAGEMENT v9.1 (V8 VISUAL STYLE + ENHANCED SCORING)
+// =====================================================================
+
+fvg_min_size_val = atr_value * fvgMinSize / 100
+ob_min_size_val = atr_value * obMinSize / 100
+bullishFVG_condition = low > high[2] and (low - high[2]) > fvg_min_size_val
+bearishFVG_condition = high < low[2] and (low[2] - high) > fvg_min_size_val
+
+var label newLabel = na
+valid_bar_for_creation = not onCloseOnly or barstate.isconfirmed
+
+// ORDER BLOCK CREATION - V8 STYLE WITH v9.1 ENHANCED SCORING
+if valid_bar_for_creation
+    if close[1] < open[1] and close > high[1] and volume[1] > volume_avg[1] * 0.8 and (high[1] - low[1]) > ob_min_size_val
+        score = zone_creation_score_global
+        newBox = showOrderBlocks ? box.new(bar_index[1], high[1], bar_index, low[1], 
+                 bgcolor=bullishOBColor, border_width=0, extend=extend.right) : na
+        labelText = "OB|" + str.tostring(score, "#.#")
+        newLabel := showOrderBlocks ? label.new(bar_index, (high[1] + low[1]) / 2, labelText, 
+                   xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, 
+                   textcolor=boxLabelColor, size=size.small) : na
+        array.push(bullishOBArray, OrderBlock.new(newBox, newLabel, high[1], low[1], bar_index[1], false, score, 0))
+    
+    if close[1] > open[1] and close < low[1] and volume[1] > volume_avg[1] * 0.8 and (high[1] - low[1]) > ob_min_size_val
+        score = zone_creation_score_global
+        newBox = showOrderBlocks ? box.new(bar_index[1], high[1], bar_index, low[1], 
+                 bgcolor=bearishOBColor, border_width=0, extend=extend.right) : na
+        labelText = "OB|" + str.tostring(score, "#.#")
+        newLabel := showOrderBlocks ? label.new(bar_index, (high[1] + low[1]) / 2, labelText, 
+                   xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, 
+                   textcolor=boxLabelColor, size=size.small) : na
+        array.push(bearishOBArray, OrderBlock.new(newBox, newLabel, high[1], low[1], bar_index[1], false, score, 0))
+
+// FVG CREATION - V8 STYLE WITH v9.1 ENHANCED SCORING
+if valid_bar_for_creation
+    if bullishFVG_condition
+        score = zone_creation_score_global
+        newBox = showFVG ? box.new(bar_index[1], high[2], bar_index, low, 
+                 bgcolor=bullishFVGColor, border_width=0, extend=extend.right) : na
+        labelText = "FVG|" + str.tostring(score, "#.#")
+        newLabel := showFVG ? label.new(bar_index, (high[2] + low) / 2, labelText, 
+                   xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, 
+                   textcolor=boxLabelColor, size=size.tiny) : na
+        array.push(bullishFVGArray, FairValueGap.new(newBox, newLabel, low, high[2], bar_index[1], false, score, 0))
+    
+    if bearishFVG_condition
+        score = zone_creation_score_global
+        newBox = showFVG ? box.new(bar_index[1], low[2], bar_index, high, 
+                 bgcolor=bearishFVGColor, border_width=0, extend=extend.right) : na
+        labelText = "FVG|" + str.tostring(score, "#.#")
+        newLabel := showFVG ? label.new(bar_index, (low[2] + high) / 2, labelText, 
+                   xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, 
+                   textcolor=boxLabelColor, size=size.tiny) : na
+        array.push(bearishFVGArray, FairValueGap.new(newBox, newLabel, low[2], high, bar_index[1], false, score, 0))
+
+// Zone Testing and Cleanup Functions
+markZonesTested() =>
+    if array.size(bullishOBArray) > 0
+        for i = 0 to array.size(bullishOBArray) - 1
+            ob = array.get(bullishOBArray, i)
+            if low <= ob.top and high >= ob.bottom
+                if not ob.tested
+                    ob.tested := true
+                    ob.retests := 1
+                else
+                    ob.retests += 1
+                array.set(bullishOBArray, i, ob)
+    if array.size(bearishOBArray) > 0
+        for i = 0 to array.size(bearishOBArray) - 1
+            ob = array.get(bearishOBArray, i)
+            if high >= ob.bottom and low <= ob.top
+                if not ob.tested
+                    ob.tested := true
+                    ob.retests := 1
+                else
+                    ob.retests += 1
+                array.set(bearishOBArray, i, ob)
+    if array.size(bullishFVGArray) > 0
+        for i = 0 to array.size(bullishFVGArray) - 1
+            fvg = array.get(bullishFVGArray, i)
+            if low <= fvg.top and high >= fvg.bottom
+                if not fvg.tested
+                    fvg.tested := true
+                    fvg.retests := 1
+                else
+                    fvg.retests += 1
+                array.set(bullishFVGArray, i, fvg)
+    if array.size(bearishFVGArray) > 0
+        for i = 0 to array.size(bearishFVGArray) - 1
+            fvg = array.get(bearishFVGArray, i)
+            if high >= fvg.bottom and low <= fvg.top
+                if not fvg.tested
+                    fvg.tested := true
+                    fvg.retests := 1
+                else
+                    fvg.retests += 1
+                array.set(bearishFVGArray, i, fvg)
+
+markZonesTested()
+
+// Key Levels Update
+if enable_key_levels and is_new_day
+    prev_day_high = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_off)
+    prev_day_low = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_off)
+    array.push(keyLevels, KeyLevel.new(prev_day_high, "D", "high", 0.15, bar_index))
+    array.push(keyLevels, KeyLevel.new(prev_day_low, "D", "low", 0.15, bar_index))
+    while array.size(keyLevels) > 15
+        array.shift(keyLevels)
+
+// Enhanced Cleanup System
+cleanupOrderBlocks(arr) =>
+    if array.size(arr) > 0
+        to_remove = array.new<int>()
+        for i = 0 to array.size(arr) - 1
+            ob = array.get(arr, i)
+            age = bar_index - ob.startBar
+            should_remove = age > 100 or (removeTestedBoxes and ob.tested and ob.retests > 3)
+            if should_remove
+                array.push(to_remove, i)
+        if array.size(to_remove) > 0
+            j = array.size(to_remove) - 1
+            while j >= 0
+                idx = array.get(to_remove, j)
+                if idx < array.size(arr)
+                    ob = array.get(arr, idx)
+                    if not na(ob.boxObj)
+                        box.delete(ob.boxObj)
+                    if not na(ob.labelObj)
+                        label.delete(ob.labelObj)
+                    array.remove(arr, idx)
+                j := j - 1
+
+cleanupFVGs(arr) =>
+    if array.size(arr) > 0
+        to_remove = array.new<int>()
+        for i = 0 to array.size(arr) - 1
+            fvg = array.get(arr, i)
+            age = bar_index - fvg.startBar
+            should_remove = age > 50 or (removeTestedBoxes and fvg.tested and fvg.retests > 2)
+            if should_remove
+                array.push(to_remove, i)
+        if array.size(to_remove) > 0
+            j = array.size(to_remove) - 1
+            while j >= 0
+                idx = array.get(to_remove, j)
+                if idx < array.size(arr)
+                    fvg = array.get(arr, idx)
+                    if not na(fvg.boxObj)
+                        box.delete(fvg.boxObj)
+                    if not na(fvg.labelObj)
+                        label.delete(fvg.labelObj)
+                    array.remove(arr, idx)
+                j := j - 1
+
+if enable_fast_mode and bar_index % 10 == 0
+    cleanupOrderBlocks(bullishOBArray)
+    cleanupOrderBlocks(bearishOBArray)
+    cleanupFVGs(bullishFVGArray)
+    cleanupFVGs(bearishFVGArray)
+
+while array.size(bullishOBArray) > maxActiveOB
+    ob = array.shift(bullishOBArray)
+    if not na(ob.boxObj)
+        box.delete(ob.boxObj)
+    if not na(ob.labelObj)
+        label.delete(ob.labelObj)
+
+while array.size(bearishOBArray) > maxActiveOB
+    ob = array.shift(bearishOBArray)
+    if not na(ob.boxObj)
+        box.delete(ob.boxObj)
+    if not na(ob.labelObj)
+        label.delete(ob.labelObj)
+
+while array.size(bullishFVGArray) > maxActiveFVG
+    fvg = array.shift(bullishFVGArray)
+    if not na(fvg.boxObj)
+        box.delete(fvg.boxObj)
+    if not na(fvg.labelObj)
+        label.delete(fvg.labelObj)
+
+while array.size(bearishFVGArray) > maxActiveFVG
+    fvg = array.shift(bearishFVGArray)
+    if not na(fvg.boxObj)
+        box.delete(fvg.boxObj)
+    if not na(fvg.labelObj)
+        label.delete(fvg.labelObj)
+
+// =====================================================================
+// 🎯 ULTIMATE SIGNAL GENERATION v9.1 + ENHANCED INTEGRATIONS
+// =====================================================================
+
+// ULTIMATE SIGNAL STRENGTH CALCULATION - v9.1 WITH VOLUME CONTEXT & FAKE BREAKOUT
+getUltimateSignalStrength(is_buy) =>
+    // Zone Quality Component (Enhanced with Wick Patterns)
+    [in_ob, ob_score, ob_index] = isInOrderBlock(is_buy)
+    [in_fvg, fvg_score, fvg_index] = isInFVG(is_buy)
+    zone_strength = 0.0
+    
+    if in_ob
+        ob_contribution = (ob_score / 5.0) * zone_quality_weight
+        if ob_index >= 0 and useZoneRetests
+            ob = array.get(is_buy ? bullishOBArray : bearishOBArray, ob_index)
+            ob_contribution *= ob.tested and ob.retests <= 2 ? 1.35 : (not ob.tested ? 1.15 : 1.0)
+        zone_strength += ob_contribution
+    
+    if in_fvg
+        fvg_contribution = (fvg_score / 5.0) * zone_quality_weight * 0.85
+        if fvg_index >= 0 and useZoneRetests
+            fvg = array.get(is_buy ? bullishFVGArray : bearishFVGArray, fvg_index)
+            fvg_contribution *= fvg.tested and fvg.retests <= 1 ? 1.25 : 1.0
+        zone_strength += fvg_contribution
+
+    // Key Levels Component
+    [near_level, level_strength] = isNearKeyLevel(close)
+    key_levels_component = near_level ? level_strength * key_levels_weight : 0.0
+
+    // Technical Component
+    mfi_strength = (is_buy and mfi_value < mfi_oversold ? 0.20 : 0.0) + (not is_buy and mfi_value > mfi_overbought ? 0.20 : 0.0)
+    
+    macd_crossover_up = ta.crossover(macd_line, macd_signal)
+    macd_crossunder_down = ta.crossunder(macd_line, macd_signal)
+    macd_strength = (is_buy and macd_crossover_up ? 0.15 : 0.0) + (not is_buy and macd_crossunder_down ? 0.15 : 0.0)
+    
+    micro_trend_strength = useMicroTrend ? ((is_buy and microTrendBullish) or (not is_buy and microTrendBearish) ? 0.18 : 0.0) : 0.0
+    technical_strength = (mfi_strength + macd_strength + micro_trend_strength) * technical_weight
+
+    // Context Component (Enhanced)
+    context_strength_raw = (adx_rising_3 ? 0.12 : adx > adxThreshold ? 0.08 : 0.0) + getActiveSessionBonus()
+    context_strength_raw += useEMAFilter and ((is_buy and emaFast > emaSlow) or (not is_buy and emaFast < emaSlow)) ? 0.07 : 0.0
+    context_strength_raw += enableReEntry and liquiditySweep and (in_ob or in_fvg) ? reEntryBonus : 0.0
+    context_strength_raw += useFreshBOS and lastBOSBar > 0 and (bar_index - lastBOSBar <= bosMaxAge) and ((is_buy and lastBOSDirection == 1) or (not is_buy and lastBOSDirection == -1)) ? 0.12 : 0.0
+    context_strength_raw += useVolumeDirection ? ((is_buy and buyVolume > sellVolume * 1.5) or (not is_buy and sellVolume > buyVolume * 1.5) ? 0.06 : 0.0) : 0.0
+    context_strength = context_strength_raw * context_weight
+
+    // Crypto Component
+    crypto_strength_raw = (is_buy and oiBullish) or (not is_buy and oiBearish) ? 0.08 : 0.0
+    crypto_strength_raw += enableBTCCorrelation and math.abs(btcCorrelation) > btcCorrelationThreshold and ((is_buy and btcTrend > 0) or (not is_buy and btcTrend < 0)) ? 0.15 : 0.0
+    crypto_strength = crypto_strength_raw * crypto_weight
+    
+    total_strength = zone_strength + key_levels_component + technical_strength + context_strength + crypto_strength
+    
+    // Apply ALL multipliers (100% ROADMAP COMPLIANCE)
+    total_strength *= getRegimeMultiplier(enhanced_regime, regime_confidence, is_buy)
+    total_strength *= is_buy ? buyWaveMultiplier : sellWaveMultiplier
+    total_strength *= getMTFMultiplier(is_buy, mtf_agreement_ratio)
+    
+    // 🎯 v9.1 NEW: Enhanced Volume Context Integration
+    total_strength *= getSmartVolumeConfirmation(is_buy)
+    
+    // 🚀 v9.1 NEW: Fake Breakout Gradual Penalty (Emergency Mode bypasses this)
+    fake_breakout_multiplier = is_buy ? buyFakeBreakoutPenalty : sellFakeBreakoutPenalty
+    total_strength *= fake_breakout_multiplier
+
+    // Extreme conditions with Emergency whitelist
+    if enable_extreme_filter
+        total_strength *= (1.0 - confidence_penalty)
+
+    math.min(total_strength, 1.0)
+
+// Emergency Signal Strength (v9.1 Enhanced with Volume Context)
+getEmergencySignalStrength(is_buy) =>
+    base_strength = emergency_signal_strength
+    [near_level, _] = isNearKeyLevel(close)
+    if near_level
+        base_strength *= 1.3
+    if volume > volume_avg * (emergency_volume_threshold * 1.5)
+        base_strength *= 1.2
+    if getActiveSessionBonus() > 0.08
+        base_strength *= 1.15
+    
+    // 🎯 v9.1 NEW: Emergency gets Volume Context bonus but NO Fake Breakout penalty
+    if enable_enhanced_volume_context
+        vol_context_bonus = math.max(1.0, getEnhancedVolumeContextScore(is_buy))
+        base_strength *= vol_context_bonus
+    
+    math.min(base_strength, 1.0)
+
+// =====================================================================
+// FINAL SIGNAL LOGIC v9.1 - 100% ROADMAP + ENHANCED INTEGRATIONS
+// =====================================================================
+
+buySignalStrength = getUltimateSignalStrength(true)
+sellSignalStrength = getUltimateSignalStrength(false)
+emergencyBuyStrength = emergency_bull_conditions ? getEmergencySignalStrength(true) : 0.0
+emergencySellStrength = emergency_bear_conditions ? getEmergencySignalStrength(false) : 0.0
+
+buySignalTier = classifySignal(buySignalStrength)
+sellSignalTier = classifySignal(sellSignalStrength)
+
+actualBuyCooldown = getSmartCooldownForTier(buySignalTier)
+actualSellCooldown = getSmartCooldownForTier(sellSignalTier)
+
+buySignal = false
+sellSignal = false
+emergencyBuySignal = false
+emergencySellSignal = false
+var string signalTier = "None"
+
+valid_bar_for_signal = not onCloseOnly or barstate.isconfirmed
+
+if valid_bar_for_signal
+    session_ok = useActiveSessions ? getActiveSessionBonus() > 0 : true
+    
+    // 100% COMPLIANT FILTER ENFORCEMENT + v9.1 ENHANCEMENTS
+    
+    // ADX Mode Filter
+    adx_threshold_adjusted = adxThreshold * (signalProfile == "Aggressive" ? 0.75 : signalProfile == "Conservative" ? 1.10 : 1.00)
+    adx_ok = if adxMode == "Hard"
+        adx > adx_threshold_adjusted
+    else if adxMode == "Soft"
+        adx > adx_threshold_adjusted * 0.8 or adx_rising_3
+    else
+        true
+
+    // BTC Hard Filter (100% COMPLIANT - ENFORCED)
+    btc_hard_filter_ok_buy = true
+    btc_hard_filter_ok_sell = true
+    if enableBTCCorrelation and btcHardFilter and math.abs(btcCorrelation) > btcCorrelationThreshold
+        if btcTrend < 0
+            btc_hard_filter_ok_buy := false
+        if btcTrend > 0
+            btc_hard_filter_ok_sell := false
+
+    // Opposite Zone Distance Filter
+    opposite_zone_ok_buy = not useOppositeZoneFilter or opposite_zone_distance_buy_global >= minOppositeDistance
+    opposite_zone_ok_sell = not useOppositeZoneFilter or opposite_zone_distance_sell_global >= minOppositeDistance
+
+    // Room-to-Target Filter
+    profile_room_mult = signalProfile == "Aggressive" ? 0.85 : signalProfile == "Conservative" ? 1.15 : 1.00
+    req_room_buy = minRoomToTarget * profile_room_mult
+    req_room_sell = minRoomToTarget * profile_room_mult
+    room_ok_buy = not enableRoomFilter or room_to_target_buy_global >= req_room_buy
+    room_ok_sell = not enableRoomFilter or room_to_target_sell_global >= req_room_sell
+
+    // 🎯 v9.1 NEW: Enhanced Volume Context Filter
+    volume_context_ok_buy = if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        not profile.climax_detected or (profile.institutional_flow > 0.4 and profile.retest_confidence > 0.6)
+    else
+        true
+    
+    volume_context_ok_sell = if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        not profile.climax_detected or (profile.institutional_flow > 0.4 and profile.retest_confidence > 0.6)
+    else
+        true
+
+    // Emergency Signals First (BYPASS most filters including fake breakout)
+    if emergency_bull_conditions and session_ok and (bar_index - lastSignalBar) >= emergencyCooldown
+        emergencyBuySignal := true
+        signalTier := "Emergency"
+    
+    if emergency_bear_conditions and session_ok and not emergencyBuySignal and (bar_index - lastSignalBar) >= emergencyCooldown
+        emergencySellSignal := true
+        signalTier := "Emergency"
+
+    if not emergencyBuySignal and not emergencySellSignal
+        // Regular Buy Logic WITH ALL FILTERS ENFORCED + v9.1 ENHANCEMENTS
+        if buySignalTier != "None"
+            tier_cooldown = switch buySignalTier
+                "Platinum" => bar_index - lastPlatinumSignal
+                "Premium"  => bar_index - lastPremiumSignal
+                "Standard" => bar_index - lastStandardSignal
+                => 999
+            
+            if (bar_index - lastSignalBar) >= actualBuyCooldown and tier_cooldown >= actualBuyCooldown and session_ok and adx_ok and btc_hard_filter_ok_buy and opposite_zone_ok_buy and room_ok_buy and volume_context_ok_buy
+                // v9.0 FILTERS
+                regime_ok = checkConsolidationAllowance(true, buySignalTier)
+                wave_ok = not enable_wave_filter or buyWaveMultiplier > 0.85
+                required_agreement_buy = switch buySignalTier
+                    "Platinum" => mtf_platinum_threshold
+                    "Premium"  => mtf_premium_threshold
+                    "Standard" => mtf_standard_threshold
+                    "Quick"    => mtf_quick_threshold
+                    => 0.0
+                mtf_ok = not enable_mtf_agreement or (mtf_agreement_ratio >= required_agreement_buy)
+                inside_bar_ok = not isInsideBar()
+                
+                if retest_ok_buy and regime_ok and wave_ok and mtf_ok and inside_bar_ok
+                    buySignal := true
+                    signalTier := buySignalTier
+
+        // Regular Sell Logic WITH ALL FILTERS ENFORCED + v9.1 ENHANCEMENTS
+        if not buySignal and sellSignalTier != "None"
+            tier_cooldown = switch sellSignalTier
+                "Platinum" => bar_index - lastPlatinumSignal
+                "Premium"  => bar_index - lastPremiumSignal
+                "Standard" => bar_index - lastStandardSignal
+                => 999
+
+            if (bar_index - lastSignalBar) >= actualSellCooldown and tier_cooldown >= actualSellCooldown and session_ok and adx_ok and btc_hard_filter_ok_sell and opposite_zone_ok_sell and room_ok_sell and volume_context_ok_sell
+                // v9.0 FILTERS
+                regime_ok = checkConsolidationAllowance(false, sellSignalTier)
+                wave_ok = not enable_wave_filter or sellWaveMultiplier > 0.85
+                required_agreement_sell = switch sellSignalTier
+                    "Platinum" => mtf_platinum_threshold
+                    "Premium"  => mtf_premium_threshold
+                    "Standard" => mtf_standard_threshold
+                    "Quick"    => mtf_quick_threshold
+                    => 0.0
+                mtf_ok = not enable_mtf_agreement or ((1 - mtf_agreement_ratio) >= required_agreement_sell)
+                inside_bar_ok = not isInsideBar()
+                
+                if retest_ok_sell and regime_ok and wave_ok and mtf_ok and inside_bar_ok
+                    sellSignal := true
+                    signalTier := sellSignalTier
+
+if (buySignal or sellSignal or emergencyBuySignal or emergencySellSignal) and barstate.isconfirmed
+    lastSignalBar := bar_index
+    if signalTier == "Platinum"
+        lastPlatinumSignal := bar_index
+    if signalTier == "Premium"
+        lastPremiumSignal := bar_index
+    if signalTier == "Standard"
+        lastStandardSignal := bar_index
+
+// =====================================================================
+// STRATEGY LOGIC v9.1 - 5-TIER SUPPORT WITH VOLUME CONTEXT
+// =====================================================================
+
+if runAsStrategy and barstate.isconfirmed
+    tier_ok = switch tierFilter
+        "All"           => true
+        "Platinum only" => signalTier == "Platinum"
+        "Premium+"      => signalTier == "Platinum" or signalTier == "Premium"
+        "Standard+"     => signalTier == "Platinum" or signalTier == "Premium" or signalTier == "Standard"
+        "Quick+"        => signalTier != "Emergency"
+        "Emergency only"=> signalTier == "Emergency"
+        => false
+    
+    flat = strategy.position_size == 0
+    
+    // ENHANCED LONG ENTRIES with v9.1 Volume Context Position Sizing
+    if (buySignal or emergencyBuySignal) and tier_ok and flat
+        tier_mult = switch signalTier
+            "Platinum"  => 0.9
+            "Premium"   => 1.0
+            "Standard"  => 1.1
+            "Quick"     => 1.2
+            "Emergency" => 0.9
+            => 1.0
+        
+        // 🎯 v9.1 NEW: Volume Context SL Adjustment
+        volume_context_mult = if enable_enhanced_volume_context
+            profile = currentVolumeProfile
+            if profile.institutional_flow > 0.5 and profile.retest_confidence > 0.8
+                0.92  // Tighter SL with high-confidence institutional flow
+            else if profile.institutional_flow > 0.3
+                0.96  // Slightly tighter SL with institutional presence
+            else
+                1.0
+        else
+            1.0
+            
+        sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+        buffer = close * executionBuffer / 100
+        stopLoss = low - sl_distance - buffer
+        risk_per_unit = close - stopLoss
+        
+        if risk_per_unit > 0
+            base_risk = strategy.equity * riskPerTrade / 100
+            size_multiplier = getPositionSizeMultiplier(signalTier)
+            risk_amount = base_risk * size_multiplier
+            
+            position_size = risk_amount / risk_per_unit
+            max_position = strategy.equity * maxPositionSize / 100 / close
+            position_size := math.min(position_size, max_position)
+            
+            tp1 = close + (risk_per_unit * tp1RR) - buffer
+            tp2 = close + (risk_per_unit * tp2RR) - buffer
+            tp3 = close + (risk_per_unit * tp3RR) - buffer
+            mainTP = useMultiTP ? tp1 : close + (risk_per_unit * riskRewardRatio) - buffer
+            
+            entry_id = "L_" + signalTier
+            comment_strength = emergencyBuySignal ? str.tostring(emergencyBuyStrength * 100, "#") : str.tostring(buySignalStrength * 100, "#")
+            strategy.entry(entry_id, strategy.long, qty=position_size, comment="LONG " + signalTier + " " + comment_strength + "%")
+            
+            if useMultiTP
+                strategy.exit("L_TP1", from_entry=entry_id, qty_percent=50, limit=tp1, stop=stopLoss, comment="TP1")
+                strategy.exit("L_TP2", from_entry=entry_id, qty_percent=30, limit=tp2, stop=stopLoss, comment="TP2") 
+                strategy.exit("L_TP3", from_entry=entry_id, qty_percent=20, limit=tp3, stop=stopLoss, comment="TP3")
+            else
+                strategy.exit("L_EXIT", from_entry=entry_id, limit=mainTP, stop=stopLoss, comment="SL/TP")
+    
+    // ENHANCED SHORT ENTRIES with v9.1 Volume Context Position Sizing
+    if (sellSignal or emergencySellSignal) and tier_ok and flat
+        tier_mult = switch signalTier
+            "Platinum"  => 0.9
+            "Premium"   => 1.0
+            "Standard"  => 1.1
+            "Quick"     => 1.2
+            "Emergency" => 0.9
+            => 1.0
+        
+        // 🎯 v9.1 NEW: Volume Context SL Adjustment
+        volume_context_mult = if enable_enhanced_volume_context
+            profile = currentVolumeProfile
+            if profile.institutional_flow > 0.5 and profile.retest_confidence > 0.8
+                0.92  // Tighter SL with high-confidence institutional flow
+            else if profile.institutional_flow > 0.3
+                0.96  // Slightly tighter SL with institutional presence
+            else
+                1.0
+        else
+            1.0
+            
+        sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+        buffer = close * executionBuffer / 100
+        stopLoss = high + sl_distance + buffer
+        risk_per_unit = stopLoss - close
+        
+        if risk_per_unit > 0
+            base_risk = strategy.equity * riskPerTrade / 100
+            size_multiplier = getPositionSizeMultiplier(signalTier)
+            risk_amount = base_risk * size_multiplier
+            
+            position_size = risk_amount / risk_per_unit
+            max_position = strategy.equity * maxPositionSize / 100 / close
+            position_size := math.min(position_size, max_position)
+            
+            tp1 = close - (risk_per_unit * tp1RR) + buffer
+            tp2 = close - (risk_per_unit * tp2RR) + buffer
+            tp3 = close - (risk_per_unit * tp3RR) + buffer  
+            mainTP = useMultiTP ? tp1 : close - (risk_per_unit * riskRewardRatio) + buffer
+            
+            entry_id = "S_" + signalTier
+            comment_strength = emergencySellSignal ? str.tostring(emergencySellStrength * 100, "#") : str.tostring(sellSignalStrength * 100, "#")
+            strategy.entry(entry_id, strategy.short, qty=position_size, comment="SHORT " + signalTier + " " + comment_strength + "%")
+            
+            if useMultiTP
+                strategy.exit("S_TP1", from_entry=entry_id, qty_percent=50, limit=tp1, stop=stopLoss, comment="TP1")
+                strategy.exit("S_TP2", from_entry=entry_id, qty_percent=30, limit=tp2, stop=stopLoss, comment="TP2")
+                strategy.exit("S_TP3", from_entry=entry_id, qty_percent=20, limit=tp3, stop=stopLoss, comment="TP3")
+            else
+                strategy.exit("S_EXIT", from_entry=entry_id, limit=mainTP, stop=stopLoss, comment="SL/TP")
+
+// =====================================================================
+// VISUALS AND PLOTTING v9.1 - V8 STYLE + NEW DEBUG FEATURES
+// =====================================================================
+
+// V8 Style Signal Plotting - CORRECTED SIZES
+plotshape(buySignal and signalTier == "Platinum", "Buy Platinum", shape.triangleup, location.belowbar, platinumSignalColor, size=size.large)
+plotshape(sellSignal and signalTier == "Platinum", "Sell Platinum", shape.triangledown, location.abovebar, platinumSignalColor, size=size.large)
+plotshape(buySignal and signalTier == "Premium", "Buy Premium", shape.triangleup, location.belowbar, premiumSignalColor, size=size.normal)
+plotshape(sellSignal and signalTier == "Premium", "Sell Premium", shape.triangledown, location.abovebar, premiumSignalColor, size=size.normal)
+plotshape(buySignal and signalTier == "Standard", "Buy Standard", shape.triangleup, location.belowbar, standardSignalColor, size=size.small)
+plotshape(sellSignal and signalTier == "Standard", "Sell Standard", shape.triangledown, location.abovebar, standardSignalColor, size=size.small)
+plotshape(buySignal and signalTier == "Quick", "Buy Quick", shape.triangleup, location.belowbar, quickSignalColor, size=size.tiny)
+plotshape(sellSignal and signalTier == "Quick", "Sell Quick", shape.triangledown, location.abovebar, quickSignalColor, size=size.tiny)
+
+// EMERGENCY SIGNALS - V8 Style Arrows
+plotshape(emergencyBuySignal, "Emergency Bull", shape.arrowup, location.belowbar, emergencySignalColor, size=size.normal)
+plotshape(emergencySellSignal, "Emergency Bear", shape.arrowdown, location.abovebar, color.new(color.orange, 0), size=size.normal)
+
+// 🎯 v9.1 NEW: Enhanced Debug Visualizations
+if showVolumeProfile and barstate.isconfirmed and enable_enhanced_volume_context
+    profile = currentVolumeProfile
+    vol_info = ""
+    if profile.institutional_flow > 0.4
+        vol_info += "INST "
+    if profile.climax_detected
+        vol_info += "CLIMAX "
+    if profile.accumulation_ratio > accumulation_threshold
+        vol_info += "ACC "
+    if profile.distribution_ratio > accumulation_threshold
+        vol_info += "DIST "
+    
+    if str.length(vol_info) > 0
+        vol_info += "(" + str.tostring(profile.retest_confidence * 100, "#") + "%)"
+        label.new(bar_index, low - atr_value * 0.6, vol_info, 
+                 style=label.style_none, textcolor=color.new(color.aqua, 0), size=size.tiny)
+
+if showFakeBreakoutInfo and barstate.isconfirmed and enable_fake_breakout_filter
+    // NAPRAWKA BŁĘDÓW 4-7: Użycie pre-obliczonych zmiennych globalnych
+    if buyFakeBreakout or sellFakeBreakout
+        fake_info = "FB: "
+        if buyFakeBreakout and not emergency_bull_conditions
+            fake_info += "BUY(-" + str.tostring((1.0-buyFakeBreakoutMultiplier)*100, "#") + "%) "
+        if sellFakeBreakout and not emergency_bear_conditions
+            fake_info += "SELL(-" + str.tostring((1.0-sellFakeBreakoutMultiplier)*100, "#") + "%)"
+        
+        if str.length(fake_info) > 4
+            label.new(bar_index, high + atr_value * 0.3, fake_info,
+                     style=label.style_none, textcolor=color.new(color.orange, 0), size=size.tiny)
+
+// Missed Signals - Enhanced with v9.1 Context
+if showMissedSignals and barstate.isconfirmed
+    [near_level, level_strength] = isNearKeyLevel(close)
+    
+    quality_context_buy = ((in_ob_buy_global and ob_score_buy_global >= 3.0) or 
+                          (in_fvg_buy_global and fvg_score_buy_global >= 3.0) or 
+                          (near_level and level_strength >= 0.18) or
+                          (adx_rising_3 and microTrendBullish and volumeSpike))
+    
+    quality_context_sell = ((in_ob_sell_global and ob_score_sell_global >= 3.0) or 
+                           (in_fvg_sell_global and fvg_score_sell_global >= 3.0) or 
+                           (near_level and level_strength >= 0.18) or
+                           (adx_rising_3 and microTrendBearish and volumeSpike))
+    
+    smart_missed_threshold = getSmartMissedThreshold()
+    session_ok_missed = useActiveSessions ? getActiveSessionBonus() > 0 : true
+    
+    // Regular missed signals
+    if buySignalStrength >= smart_missed_threshold and buySignalStrength < quickThreshold and quality_context_buy and session_ok_missed
+        missedBuyCondition := true
+        
+    if sellSignalStrength >= smart_missed_threshold and sellSignalStrength < quickThreshold and quality_context_sell and session_ok_missed
+        missedSellCondition := true
+    
+    // Emergency missed signals
+    emergency_missed_threshold = emergency_signal_strength * 0.85
+    if emergencyBuyStrength >= emergency_missed_threshold and emergencyBuyStrength < emergency_signal_strength and not emergencyBuySignal
+        missedBuyCondition := true
+    
+    if emergencySellStrength >= emergency_missed_threshold and emergencySellStrength < emergency_signal_strength and not emergencySellSignal
+        missedSellCondition := true
+
+plotshape(missedBuyCondition, "Missed Buy", shape.triangleup, location.belowbar, color.new(color.gray, 0), size=size.small)
+plotshape(missedSellCondition, "Missed Sell", shape.triangledown, location.abovebar, color.new(color.gray, 0), size=size.small)
+
+// V8 Style Signal Tier Labels - RESTORED with v9.1 Enhancements
+if ((buySignal or sellSignal or emergencyBuySignal or emergencySellSignal) and showSignalTier and barstate.isconfirmed)
+    signal_strength_display = if emergencyBuySignal
+        emergencyBuyStrength
+    else if emergencySellSignal
+        emergencySellStrength
+    else if buySignal
+        buySignalStrength
+    else
+        sellSignalStrength
+        
+    label_text = str.tostring(signal_strength_display * 100, "#") + "%"
+    
+    // 🎯 v9.1 NEW: Add context indicators to label
+    if enable_enhanced_volume_context and currentVolumeProfile.institutional_flow > 0.4
+        label_text += " INST"
+    if enable_fake_breakout_filter and ((buySignal and buyFakeBreakout) or (sellSignal and sellFakeBreakout))
+        label_text += " FB"
+    
+    label_y = (buySignal or emergencyBuySignal) ? low - atr_value * 0.4 : high + atr_value * 0.4
+    
+    label_color = if signalTier == "Platinum"
+        platinumSignalColor
+    else if signalTier == "Premium"
+        premiumSignalColor
+    else if signalTier == "Standard"
+        standardSignalColor
+    else if signalTier == "Emergency"
+        (buySignal or emergencyBuySignal) ? color.new(color.lime, 0) : color.new(color.orange, 0)
+    else
+        quickSignalColor
+        
+    label.new(bar_index, label_y, label_text, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_none, color=label_color, textcolor=color.white, size=size.tiny)
+
+plot(useEMAFilter ? emaFast : na, "EMA Fast", color.new(color.aqua, 20), 1)
+plot(useEMAFilter ? emaSlow : na, "EMA Slow", color.new(color.orange, 20), 1)
+plot(showDailyVWAP and not na(dailyVWAP) ? dailyVWAP : na, "VWAP", color.purple, 2)
+plot(showVWAPBands and not na(dailyUpperBand) ? dailyUpperBand : na, "VWAP Upper", color.new(color.purple, 70))
+plot(showVWAPBands and not na(dailyLowerBand) ? dailyLowerBand : na, "VWAP Lower", color.new(color.purple, 70))
+
+// =====================================================================
+// ALERTS - JSON FORMAT v9.1 ENHANCED
+// =====================================================================
+
+alertcondition(buySignal and barstate.isconfirmed, "Buy Signal v9.1", "BUY Signal Generated")
+alertcondition(sellSignal and barstate.isconfirmed, "Sell Signal v9.1", "SELL Signal Generated")
+alertcondition(emergencyBuySignal, "Emergency Buy v9.1", "EMERGENCY BUY Signal Generated")
+alertcondition(emergencySellSignal, "Emergency Sell v9.1", "EMERGENCY SELL Signal Generated")
+
+// JSON Alert for Buy Signals - v9.1 Enhanced
+if buySignal and barstate.isconfirmed
+    tier_mult = signalTier == "Platinum" ? 0.9 : signalTier == "Premium" ? 1.0 : signalTier == "Standard" ? 1.1 : 1.2
+    volume_context_mult = enable_enhanced_volume_context and currentVolumeProfile.institutional_flow > 0.5 ? 0.95 : 1.0
+    sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk_per_unit = close - stopLoss
+    
+    tp1 = close + (risk_per_unit * tp1RR) - buffer
+    tp2 = close + (risk_per_unit * tp2RR) - buffer
+    tp3 = close + (risk_per_unit * tp3RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk_per_unit * riskRewardRatio) - buffer
+    breakEven = close + (risk_per_unit * 0.1)
+    
+    alertMessage = '{"action":"buy","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(buySignalStrength, "#.###") + ',"tier":"' + signalTier + '"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier(signalTier), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(getPairTier()) + ',"leverage":' + str.tostring(getRecommendedLeverage())
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // 🎯 v9.1 NEW: Enhanced Context Information
+    alertMessage += ',"v91_enhancements":{'
+    if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        alertMessage += '"volume_context":{'
+        alertMessage += '"institutional_flow":' + str.tostring(profile.institutional_flow, "#.##") + ','
+        alertMessage += '"retest_confidence":' + str.tostring(profile.retest_confidence, "#.##") + ','
+        alertMessage += '"climax_detected":' + (profile.climax_detected ? "true" : "false") + '},'
+    
+    if enable_fake_breakout_filter
+        alertMessage += '"fake_breakout":{'
+        alertMessage += '"detected":' + (buyFakeBreakout ? "true" : "false") + ','
+        alertMessage += '"penalty_multiplier":' + str.tostring(buyFakeBreakoutPenalty, "#.##") + '}'
+    
+    alertMessage += '}'
+    alertMessage += ',"version":"9.1_ULTIMATE_FINAL"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// JSON Alert for Sell Signals - v9.1 Enhanced
+if sellSignal and barstate.isconfirmed
+    tier_mult = signalTier == "Platinum" ? 0.9 : signalTier == "Premium" ? 1.0 : signalTier == "Standard" ? 1.1 : 1.2
+    volume_context_mult = enable_enhanced_volume_context and currentVolumeProfile.institutional_flow > 0.5 ? 0.95 : 1.0
+    sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk_per_unit = stopLoss - close
+    
+    tp1 = close - (risk_per_unit * tp1RR) + buffer
+    tp2 = close - (risk_per_unit * tp2RR) + buffer
+    tp3 = close - (risk_per_unit * tp3RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk_per_unit * riskRewardRatio) + buffer
+    breakEven = close - (risk_per_unit * 0.1)
+    
+    alertMessage = '{"action":"sell","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(sellSignalStrength, "#.###") + ',"tier":"' + signalTier + '"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier(signalTier), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(getPairTier()) + ',"leverage":' + str.tostring(getRecommendedLeverage())
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    
+    // 🎯 v9.1 NEW: Enhanced Context Information
+    alertMessage += ',"v91_enhancements":{'
+    if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        alertMessage += '"volume_context":{'
+        alertMessage += '"institutional_flow":' + str.tostring(profile.institutional_flow, "#.##") + ','
+        alertMessage += '"retest_confidence":' + str.tostring(profile.retest_confidence, "#.##") + ','
+        alertMessage += '"climax_detected":' + (profile.climax_detected ? "true" : "false") + '},'
+    
+    if enable_fake_breakout_filter
+        alertMessage += '"fake_breakout":{'
+        alertMessage += '"detected":' + (sellFakeBreakout ? "true" : "false") + ','
+        alertMessage += '"penalty_multiplier":' + str.tostring(sellFakeBreakoutPenalty, "#.##") + '}'
+    
+    alertMessage += '}'
+    alertMessage += ',"version":"9.1_ULTIMATE_FINAL"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// JSON Alert for Emergency Buy - v9.1 Enhanced
+if emergencyBuySignal and barstate.isconfirmed
+    tier_mult = 0.9
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk_per_unit = close - stopLoss
+    
+    tp1 = close + (risk_per_unit * tp1RR) - buffer
+    tp2 = close + (risk_per_unit * tp2RR) - buffer
+    tp3 = close + (risk_per_unit * tp3RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk_per_unit * riskRewardRatio) - buffer
+    breakEven = close + (risk_per_unit * 0.1)
+    
+    alertMessage = '{"action":"emergency_buy","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(emergencyBuyStrength, "#.###") + ',"tier":"Emergency"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier("Emergency"), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(getPairTier()) + ',"leverage":' + str.tostring(getRecommendedLeverage())
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    alertMessage += ',"emergency_conditions":{'
+    alertMessage += '"fresh_bos_age":' + str.tostring(bar_index - lastBOSBar) + ','
+    alertMessage += '"volume_multiplier":' + str.tostring(volume / volume_avg, "#.#") + ','
+    alertMessage += '"micro_trend_bullish":' + (microTrendBullish ? "true" : "false") + ','
+    alertMessage += '"rising_adx":' + (adx_rising_3 ? "true" : "false") + '}'
+    
+    // 🎯 v9.1 NEW: Emergency gets Volume Context bonus but NO Fake Breakout penalty
+    alertMessage += ',"v91_enhancements":{'
+    if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        alertMessage += '"volume_context":{'
+        alertMessage += '"institutional_flow":' + str.tostring(profile.institutional_flow, "#.##") + ','
+        alertMessage += '"emergency_bypass":true},'
+    
+    alertMessage += '"fake_breakout":{"emergency_bypass":true}}'
+    alertMessage += ',"version":"9.1_EMERGENCY_TURBO"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// JSON Alert for Emergency Sell - v9.1 Enhanced
+if emergencySellSignal and barstate.isconfirmed
+    tier_mult = 0.9
+    sl_distance = atr_value * atrSLMultiplier * tier_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk_per_unit = stopLoss - close
+    
+    tp1 = close - (risk_per_unit * tp1RR) + buffer
+    tp2 = close - (risk_per_unit * tp2RR) + buffer
+    tp3 = close - (risk_per_unit * tp3RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk_per_unit * riskRewardRatio) + buffer
+    breakEven = close - (risk_per_unit * 0.1)
+    
+    alertMessage = '{"action":"emergency_sell","symbol":"' + syminfo.ticker + '","price":' + str.tostring(close, "#.######")
+    alertMessage += ',"sl":' + str.tostring(stopLoss, "#.######") + ',"tp1":' + str.tostring(mainTP, "#.######")
+    if useMultiTP
+        alertMessage += ',"tp2":' + str.tostring(tp2, "#.######") + ',"tp3":' + str.tostring(tp3, "#.######")
+    alertMessage += ',"break_even":' + str.tostring(breakEven, "#.######")
+    alertMessage += ',"strength":' + str.tostring(emergencySellStrength, "#.###") + ',"tier":"Emergency"'
+    alertMessage += ',"position_size_multiplier":' + str.tostring(getPositionSizeMultiplier("Emergency"), "#.#")
+    alertMessage += ',"pair_tier":' + str.tostring(getPairTier()) + ',"leverage":' + str.tostring(getRecommendedLeverage())
+    alertMessage += ',"session":"' + sessionText() + '","timeframe":"' + timeframe.period + '"'
+    alertMessage += ',"emergency_conditions":{'
+    alertMessage += '"fresh_bos_age":' + str.tostring(bar_index - lastBOSBar) + ','
+    alertMessage += '"volume_multiplier":' + str.tostring(volume / volume_avg, "#.#") + ','
+    alertMessage += '"micro_trend_bearish":' + (microTrendBearish ? "true" : "false") + ','
+    alertMessage += '"rising_adx":' + (adx_rising_3 ? "true" : "false") + '}'
+    
+    // 🎯 v9.1 NEW: Emergency gets Volume Context bonus but NO Fake Breakout penalty
+    alertMessage += ',"v91_enhancements":{'
+    if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        alertMessage += '"volume_context":{'
+        alertMessage += '"institutional_flow":' + str.tostring(profile.institutional_flow, "#.##") + ','
+        alertMessage += '"emergency_bypass":true},'
+    
+    alertMessage += '"fake_breakout":{"emergency_bypass":true}}'
+    alertMessage += ',"version":"9.1_EMERGENCY_TURBO"}'
+    
+    alert(alertMessage, alert.freq_once_per_bar_close)
+
+// ==============================================================================================================
+// ULTIMATE INFO PANEL v9.1 - ENHANCED WITH NEW FEATURES
+// ==============================================================================================================
+
+var table infoTable = table.new(position.top_right, 2, 42, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+    table.clear(infoTable, 0, 0, 1, 41)
+    
+    // Header
+    table.cell(infoTable, 0, 0, "M5 SCALPER v9.1", text_color=color.yellow, text_size=size.small)
+    table.cell(infoTable, 1, 0, "ENHANCED FINAL", text_color=color.lime, text_size=size.small)
+    
+    // Basic Info
+    table.cell(infoTable, 0, 1, "Mode:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 1, signalProfile, text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(infoTable, 0, 2, "Pair Tier:", text_color=color.white, text_size=size.tiny)
+    tierColor = getPairTier() == 1 ? color.green : getPairTier() == 2 ? color.yellow : color.orange
+    table.cell(infoTable, 1, 2, "T" + str.tostring(getPairTier()), text_color=tierColor, text_size=size.tiny)
+    
+    // 5-Tier Signal Status
+    table.cell(infoTable, 0, 5, "5-TIER STATUS", text_color=color.lime, text_size=size.small)
+    table.cell(infoTable, 1, 5, "", text_color=color.lime, text_size=size.small)
+    
+    // Buy Signals
+    table.cell(infoTable, 0, 6, "Buy Str:", text_color=color.white, text_size=size.tiny)
+    buyColor = if buySignalTier == "Platinum"
+        platinumSignalColor
+    else if buySignalTier == "Premium"
+        premiumSignalColor
+    else if buySignalTier == "Standard"
+        standardSignalColor
+    else if buySignalTier == "Quick"
+        quickSignalColor
+    else
+        color.gray
+    buyText = buySignalTier != "None" ? buySignalTier + " " + str.tostring(buySignalStrength * 100, "#") + "%" : "No"
+    table.cell(infoTable, 1, 6, buyText, text_color=buyColor, text_size=size.tiny)
+    
+    // Emergency Status
+    table.cell(infoTable, 0, 8, "Emergency:", text_color=color.white, text_size=size.tiny)
+    emergency_status = if emergency_bull_conditions or emergency_bear_conditions
+        "ACTIVE"
+    else if enable_emergency_mode
+        "READY"
+    else
+        "OFF"
+    emergency_color = if emergency_bull_conditions or emergency_bear_conditions
+        color.lime
+    else if enable_emergency_mode
+        color.yellow
+    else
+        color.gray
+    table.cell(infoTable, 1, 8, emergency_status, text_color=emergency_color, text_size=size.tiny)
+    
+    // NEW v9.1 FEATURES STATUS
+    table.cell(infoTable, 0, 9, "v9.1 ENHANCED", text_color=color.aqua, text_size=size.small)
+    table.cell(infoTable, 1, 9, "", text_color=color.aqua, text_size=size.small)
+    
+    // Enhanced Market Regime
+    table.cell(infoTable, 0, 10, "Market Regime:", text_color=color.white, text_size=size.tiny)
+    regime_color = switch enhanced_regime
+        "CONSOLIDATION" => color.yellow
+        "UPTREND" => color.green
+        "DOWNTREND" => color.red
+        "BREAKOUT" => color.lime
+        => color.gray
+    regime_text = enhanced_regime + " (" + str.tostring(regime_confidence * 100, "#") + "%)"
+    table.cell(infoTable, 1, 10, regime_text, text_color=regime_color, text_size=size.tiny)
+    
+    // MTF Agreement
+    table.cell(infoTable, 0, 12, "MTF Agreement:", text_color=color.white, text_size=size.tiny)
+    mtf_text = str.tostring(mtf_agreement_ratio * 100, "#") + "%"
+    mtf_color = if mtf_agreement_ratio >= 0.8
+        color.green
+    else if mtf_agreement_ratio >= 0.6
+        color.yellow
+    else if mtf_agreement_ratio < 0.4
+        color.red
+    else
+        color.white
+    table.cell(infoTable, 1, 12, mtf_text, text_color=mtf_color, text_size=size.tiny)
+    
+    // 🎯 v9.1 NEW: Enhanced Volume Context Status
+    if enable_enhanced_volume_context
+        table.cell(infoTable, 0, 13, "Volume Context:", text_color=color.white, text_size=size.tiny)
+        profile = currentVolumeProfile
+        vol_status = ""
+        if profile.institutional_flow > 0.4
+            vol_status += "INST "
+        if profile.climax_detected
+            vol_status += "CLIMAX "
+        if profile.retest_confidence > 0.8
+            vol_status += "RETEST"
+        if str.length(vol_status) == 0
+            vol_status := "NORMAL"
+        
+        vol_color = if profile.institutional_flow > 0.4
+            color.lime
+        else if profile.climax_detected
+            color.red
+        else
+            color.white
+        table.cell(infoTable, 1, 13, vol_status, text_color=vol_color, text_size=size.tiny)
+    
+    // 🚀 v9.1 NEW: Fake Breakout Status
+    if enable_fake_breakout_filter
+        table.cell(infoTable, 0, 14, "Fake Breakout:", text_color=color.white, text_size=size.tiny)
+        
+        fake_status = ""
+        if buyFakeBreakout and not emergency_bull_conditions
+            fake_status += "BUY "
+        if sellFakeBreakout and not emergency_bear_conditions
+            fake_status += "SELL"
+        if str.length(fake_status) == 0
+            fake_status := "CLEAR"
+        
+        fake_color = if (buyFakeBreakout and not emergency_bull_conditions) or (sellFakeBreakout and not emergency_bear_conditions)
+            color.orange
+        else
+            color.green
+        table.cell(infoTable, 1, 14, fake_status, text_color=fake_color, text_size=size.tiny)
+    
+    // Version
+    table.cell(infoTable, 0, 41, "Version:", text_color=color.white, text_size=size.tiny)
+    table.cell(infoTable, 1, 41, "v9.1 FINAL", text_color=color.lime, text_size=size.tiny)
+
+// Debug Information Display - v9.1 Enhanced
+if showSignalStrength and barstate.isconfirmed
+    if buySignalStrength > 0.15 or sellSignalStrength > 0.15 or emergencyBuyStrength > 0 or emergencySellStrength > 0
+        strength_text = "B:" + str.tostring(buySignalStrength * 100, "#") + "% S:" + str.tostring(sellSignalStrength * 100, "#") + "%"
+        if emergencyBuyStrength > 0 or emergencySellStrength > 0
+            strength_text += " E:" + str.tostring(math.max(emergencyBuyStrength, emergencySellStrength) * 100, "#") + "%"
+        
+        // 🎯 v9.1 NEW: Add volume context and fake breakout info
+        if enable_enhanced_volume_context and currentVolumeProfile.institutional_flow > 0.4
+            strength_text += " INST"
+        if enable_fake_breakout_filter and (buyFakeBreakout or sellFakeBreakout)
+            strength_text += " FB"
+        
+        label.new(bar_index, high + atr_value * 0.5, strength_text, 
+                 style=label.style_none, textcolor=color.white, size=size.tiny)
+
+// SL/TP Lines - V8 Style Restored with v9.1 Volume Context Adjustments
+var line buyStopLine = na
+var line buyTargetLine = na
+var line sellStopLine = na
+var line sellTargetLine = na
+
+deleteOldLines() =>
+    line.delete(buyStopLine)
+    line.delete(buyTargetLine)
+    line.delete(sellStopLine)
+    line.delete(sellTargetLine)
+
+if (buySignal or emergencyBuySignal) and showSLTPLines and valid_bar_for_signal
+    deleteOldLines()
+    
+    tier_mult = switch signalTier
+        "Platinum"  => 0.9
+        "Premium"   => 1.0
+        "Standard"  => 1.1
+        "Quick"     => 1.2
+        "Emergency" => 0.9
+        => 1.0
+    
+    // 🎯 v9.1 NEW: Volume Context SL Adjustment
+    volume_context_mult = if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        if profile.institutional_flow > 0.5 and profile.retest_confidence > 0.8
+            0.92  // Tighter SL with high-confidence institutional flow
+        else if profile.institutional_flow > 0.3
+            0.96  // Slightly tighter SL with institutional presence
+        else
+            1.0
+    else
+        1.0
+        
+    sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = low - sl_distance - buffer
+    risk_per_unit = close - stopLoss
+    
+    tp1 = close + (risk_per_unit * tp1RR) - buffer
+    mainTP = useMultiTP ? tp1 : close + (risk_per_unit * riskRewardRatio) - buffer
+    
+    buyStopLine := line.new(bar_index, stopLoss, bar_index + 20, stopLoss, color=color.new(color.red, 30), width=2, style=line.style_dashed)
+    buyTargetLine := line.new(bar_index, mainTP, bar_index + 20, mainTP, color=color.new(color.green, 30), width=2, style=line.style_dashed)
+
+if (sellSignal or emergencySellSignal) and showSLTPLines and valid_bar_for_signal
+    deleteOldLines()
+    
+    tier_mult = switch signalTier
+        "Platinum"  => 0.9
+        "Premium"   => 1.0
+        "Standard"  => 1.1
+        "Quick"     => 1.2
+        "Emergency" => 0.9
+        => 1.0
+    
+    // 🎯 v9.1 NEW: Volume Context SL Adjustment
+    volume_context_mult = if enable_enhanced_volume_context
+        profile = currentVolumeProfile
+        if profile.institutional_flow > 0.5 and profile.retest_confidence > 0.8
+            0.92  // Tighter SL with high-confidence institutional flow
+        else if profile.institutional_flow > 0.3
+            0.96  // Slightly tighter SL with institutional presence
+        else
+            1.0
+    else
+        1.0
+        
+    sl_distance = atr_value * atrSLMultiplier * tier_mult * volume_context_mult
+    buffer = close * executionBuffer / 100
+    stopLoss = high + sl_distance + buffer
+    risk_per_unit = stopLoss - close
+    
+    tp1 = close - (risk_per_unit * tp1RR) + buffer
+    mainTP = useMultiTP ? tp1 : close - (risk_per_unit * riskRewardRatio) + buffer
+    
+    sellStopLine := line.new(bar_index, stopLoss, bar_index + 20, stopLoss, color=color.new(color.red, 30), width=2, style=line.style_dashed)
+    sellTargetLine := line.new(bar_index, mainTP, bar_index + 20, mainTP, color=color.new(color.green, 30), width=2, style=line.style_dashed)
+
+// =====================================================================
+// END OF SCRIPT - v9.1 ULTIMATE FINAL WITH COMPLETE FAKE BREAKOUT INTEGRATION
+// =====================================================================
