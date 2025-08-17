@@ -122,6 +122,21 @@ class Trade(Base):
     notes = Column(Text)
     alert_data = Column(JSON)  # Store full alert for debugging
     mode_used = Column(String(20))  # conservative/normal/aggressive/scalping/emergency
+    # Nowe kolumny dla v9.1 i usprawnień
+    idempotency_key = Column(String, unique=True, index=True)
+    client_tags = Column(JSON)  # {"sl": "clientOrderId", "tp1": "...", etc}
+    leverage_hint = Column(Integer)
+    indicator_version = Column(String(20))
+    
+    # v9.1 Enhanced fields
+    institutional_flow = Column(Float, default=0.0)
+    retest_confidence = Column(Float, default=0.0)
+    fake_breakout_detected = Column(Boolean, default=False)
+    fake_breakout_penalty = Column(Float, default=1.0)
+    enhanced_regime = Column(String(50), default="NEUTRAL")
+    regime_confidence = Column(Float, default=0.0)
+    mtf_agreement_ratio = Column(Float, default=0.0)
+    bar_close_time = Column(DateTime)
     
     # Indexes for performance
     __table_args__ = (

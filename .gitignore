@@ -1,1 +1,23 @@
+# Środowiska wirtualne
+.venv/
+venv/
+env/
+
+# Pliki cache Pythona
+__pycache__/
+*.pyc
+
+# Pliki logów
+*.log
+logs/
+
+# Pliki konfiguracyjne środowiska
 .env
+
+# Bazy danych
+*.db
+*.sqlite3
+
+# Pliki generowane przez edytory kodu
+.idea/
+.vscode/

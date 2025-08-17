@@ -485,3 +485,25 @@ class Config:
 if __name__ != "__main__":
     if not Config.validate_config():
     logger.warning("Configuration validation failed - check logs for details")
+    # Nowe flagi dla v9.1 i usprawnień
+USE_INDICATOR_LEVERAGE = _to_bool(os.getenv("USE_INDICATOR_LEVERAGE", "False"), default=False)
+USE_INDICATOR_SIZE_MULTIPLIER = _to_bool(os.getenv("USE_INDICATOR_SIZE_MULTIPLIER", "True"), default=True)
+MOVE_SL_TO_BE_AT_TP1 = _to_bool(os.getenv("MOVE_SL_TO_BE_AT_TP1", "True"), default=True)
+EMERGENCY_ENABLED = _to_bool(os.getenv("EMERGENCY_ENABLED", "True"), default=True)
+EMERGENCY_CLOSE_AND_REVERSE = _to_bool(os.getenv("EMERGENCY_CLOSE_AND_REVERSE", "False"), default=False)
+
+# Position Guards
+ALERT_MAX_AGE_SEC = int(os.getenv("ALERT_MAX_AGE_SEC", "30"))
+MAX_PRICE_DRIFT_PCT = float(os.getenv("MAX_PRICE_DRIFT_PCT", "0.6"))
+
+# Portfolio limits
+MAX_EXPOSURE_PER_SYMBOL_PCT = float(os.getenv("MAX_EXPOSURE_PER_SYMBOL_PCT", "10.0"))
+MAX_TOTAL_EXPOSURE_PCT = float(os.getenv("MAX_TOTAL_EXPOSURE_PCT", "30.0"))
+
+# Tier system
+TIER_MINIMUM = os.getenv("TIER_MINIMUM", "Quick")  # Platinum/Premium/Standard/Quick/Emergency
+TIER_HIERARCHY = ["Emergency", "Platinum", "Premium", "Standard", "Quick"]
+
+# Webhook security
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "").strip()
+REQUIRE_HMAC_SIGNATURE = _to_bool(os.getenv("REQUIRE_HMAC_SIGNATURE", "False"), default=False)

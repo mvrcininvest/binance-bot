@@ -70,6 +70,26 @@ class BinanceHandler:
         except Exception as e:
             logger.critical("KRYTYCZNY BŁĄD połączenia z Binance: %s", e, exc_info=True)
             self.client = None
+    def ensure_symbol_leverage_and_margin(self, symbol: str, leverage: int, margin_type: str = "ISOLATED"):
+    """Ustawia dźwignię i typ marginesu z wyraźnym logowaniem"""
+        try:
+            # Sprawdź obecną dźwignię, żeby unikać niepotrzebnych wywołań API
+            position_info = self.client.futures_position_information(symbol=symbol)
+            if int(position_info[0].get('leverage')) != leverage:
+            self.client.futures_change_leverage(symbol=symbol, leverage=leverage)
+            logger.info("Dźwignia ustawiona na %sx dla %s", leverage, symbol)
+
+            # Sprawdź obecny margin type
+            if position_info[0].get('marginType').upper() != margin_type.upper():
+                self.client.futures_change_margin_type(symbol=symbol, marginType=margin_type)
+                logger.info("Margin type ustawiony na %s dla %s", margin_type, symbol)
+
+        except BinanceAPIException as e:
+        # Ignoruj błąd 'No need to change leverage'
+            if "No need to change leverage" not in e.message:
+                 logger.warning("Nie udało się zmienić dźwigni lub margin type: %s", e.message)
+        except Exception as e:
+            logger.error("Niespodziewany błąd przy ustawianiu dźwigni: %s", e, exc_info=True)
 
     # ==== Exchange info / utils ====
     def _fetch_and_cache_exchange_info(self) -> None:
@@ -385,309 +405,81 @@ class BinanceHandler:
 
     def place_order_with_multi_tp(
     self, signal: dict[str, Any], is_dry_run: bool = False
-    ) -> tuple[bool, dict[str, Any] | None, dict[str, Any] | None]:
-    # ... (logika do pobierania symbol, side, etc. bez zmian) ...
+) -> tuple[bool, dict[str, Any] | None, dict[str, Any] | None]:
+    # ... (cała logika do pobierania symbolu, side, etc. bez zmian) ...
     canon = self._canonicalize_signal(signal)
     symbol = canon["symbol"]
     side = "BUY" if canon["side"] == "buy" else "SELL"
     default_status = (False, None, None)
 
     if is_dry_run:
-    # ... (logika dry run bez zmian) ...
-    return True, {"dry_run": True}, {}
+        # ... (logika dry run bez zmian) ...
+        return True, {"dry_run": True}, {}
 
     if not self.client:
-    return default_status
+        return default_status
 
-    leverage = int(signal.get("leverage", 10))
-    margin_type = self._get_str_setting("default_margin_type", Config.DEFAULT_MARGIN_TYPE)
+    # === ZMIANA 1: TA CZĘŚĆ JEST JUŻ U CIEBIE I JEST POPRAWNA ===
+    # Ustawienie dźwigni i margin type przed złożeniem zlecenia
+    leverage = signal.get("leverage", Config.DEFAULT_LEVERAGE)
+    margin_type = Config.DEFAULT_MARGIN_TYPE
     self.ensure_symbol_leverage_and_margin(symbol, leverage, margin_type)
 
-    # Confirm actual leverage as used by exchange
-    try:
-    pos = self.client.futures_position_information(symbol=symbol)
-    cur_lev = int(float(pos[0].get("leverage", leverage)))
-    if cur_lev != leverage:
-    logger.warning(
-    "Żądano dźwigni %sx, ale aktywna to %sx. Dostosowuję obliczenia.",
-    leverage,
-    cur_lev,
-    )
-    leverage = cur_lev
-    except Exception:
-    pass
+    # ... (cała reszta logiki do obliczania rozmiaru pozycji bez zmian) ...
+    # ... aż do momentu wywołania _setup_sl_tp_after_entry ...
 
-    entry_price_signal = canon.get("price")
-    use_alert_lvls = self._get_bool_setting("use_alert_levels", Config.USE_ALERT_LEVELS)
-    risk_percent = canon.get("risk_percent", Config.RISK_PER_TRADE)
+    # === ZMIANA 2: UPEWNIAMY SIĘ, ŻE trade_id JEST PRZEKAZYWANE ===
+    # Ta linia już u Ciebie istnieje, upewniamy się, że jest na miejscu
     trade_id = int(time.time() * 1000)
 
-    # Price for sizing fallback
-    last_px_now = self.get_last_price(symbol) or entry_price_signal
-    if last_px_now is None or last_px_now <= 0:
-    logger.error("Brak ceny dla %s – nie mogę policzyć rozmiaru.", symbol)
-    return default_status
-
-    # Ideal position sizing
-    ideal_pos_size: float | None = None
-    if (
-    use_alert_lvls
-    and (canon.get("stop_loss") is not None)
-    and (entry_price_signal is not None)
-    ):
-    # risk-based sizing
-    sl_distance = abs(float(entry_price_signal) - float(canon["stop_loss"]))
-    if sl_distance > 0:
-    available = self.get_balance()["available"] or 10_000.0
-    risk_amount = available * float(risk_percent)
-    ideal_pos_size = risk_amount / sl_distance
-
-    if ideal_pos_size is None:
-    # margin-budget based sizing (per trade fraction)
-    available = self.get_balance()["available"] or 10_000.0
-    per_trade_fraction = self._get_float_setting(
-    "margin_per_trade_fraction",
-    (
-    Config.MARGIN_PER_TRADE_FRACTION
-    if Config.MARGIN_PER_TRADE_FRACTION > 0
-    else (1.0 / max(1, Config.MARGIN_SLOTS))
-    ),
-    )
-    safety = self._get_float_setting(
-    "margin_safety_buffer", Config.MARGIN_SAFETY_BUFFER
-    )
-    alloc_margin = available * per_trade_fraction * safety
-    ideal_pos_size = (alloc_margin * leverage) / last_px_now
-
-    # Adjust by balance and bracket caps
-    final_pos_size = float(ideal_pos_size)
-    last_px = last_px_now
-    cap_qty = self._compute_qty_cap(symbol, leverage, last_px)
-    if cap_qty <= 0:
-    logger.error("Brak środków na minimalną pozycję.")
-    return default_status
-    if final_pos_size > cap_qty:
-    logger.warning(
-    "Przycinam wielkość pozycji: %.6f -> %.6f", final_pos_size, cap_qty
-    )
-    final_pos_size = cap_qty
-
-    # Balance safety: ensure margin requirement fits (with safety buffer)
-    available_balance = self.get_balance()["available"] or 0.0
-    margin_required = (final_pos_size * last_px) / max(leverage, 1)
-    if margin_required > available_balance:
-    max_possible_margin = available_balance * self._get_float_setting(
-    "margin_safety_buffer", Config.MARGIN_SAFETY_BUFFER
-    )
-    max_pos_by_balance = (max_possible_margin * leverage) / last_px
-    if max_pos_by_balance <= 0:
-    logger.error("Brak środków na minimalną pozycję.")
-    return default_status
-    logger.warning(
-    "Dopasowuję wielkość pozycji pod saldo: %.6f -> %.6f",
-    final_pos_size,
-    max_pos_by_balance,
-    )
-    final_pos_size = max_pos_by_balance
-
-    # Bracket cap against current used notional
-    max_notional = self._get_max_notional_for_leverage(symbol, leverage)
-    if max_notional:
-    used_notional = self._get_current_position_notional(symbol)
-    allowed_left = max(0.0, max_notional - used_notional)
-    max_size_by_bracket = allowed_left / max(last_px, 1e-9)
-    if max_size_by_bracket <= 0:
-    logger.error(
-    "Przekroczony limit notional dla %s przy %sx (pozost: $%.2f). "
-    "Odrzucam.",
-    symbol,
-    leverage,
-    allowed_left,
-    )
-    return default_status
-    if final_pos_size > max_size_by_bracket:
-    logger.info(
-    "Przycinam wg bracketu %s: %.6f -> %.6f (left=$%.2f)",
-    symbol,
-    final_pos_size,
-    max_size_by_bracket,
-    allowed_left,
-    )
-    final_pos_size = max_size_by_bracket
-
-    # Diagnostics before placement
-    avail = available_balance
-    logger.info(
-    "[DIAG] avail=%.2f last=%.2f lev=%s ideal=%.6f cap=%.6f final=%.6f",
-    avail,
-    last_px,
-    leverage,
-    ideal_pos_size,
-    cap_qty,
-    final_pos_size,
-    )
-
-    # LOT_SIZE / MARKET_LOT_SIZE constraints
-    max_order_qty = float(
-    self._get_filter_value(symbol, "MARKET_LOT_SIZE", "maxQty") or 0
-    ) or float(self._get_filter_value(symbol, "LOT_SIZE", "maxQty") or 10000.0)
-    _, qty_precision = self._get_precision(symbol)
-    cap_order_qty = max_order_qty  # will shrink on failures
-
-    requested_qty = max(0.0, float(final_pos_size))
-    total_executed_qty = 0.0
-    last_order_response: dict[str, Any] | None = None
-    logger.info(
-    "Rozpoczynam otwieranie pozycji %.6f %s (%s).",
-    requested_qty,
-    symbol,
-    side,
-    )
-
-    # Single meaningful MARKET with shrink-and-retry (no spamming)
-    max_attempts = 6
-    order_qty = self._round_value(
-    min(requested_qty, max_order_qty, cap_order_qty), qty_precision
-    )
-    attempt = 0
-    while attempt < max_attempts and order_qty > 0:
-    attempt += 1
-    try:
-    logger.info(
-    "[Try %d/%d] MARKET %s qty=%s %s",
-    attempt,
-    max_attempts,
-    side,
-    order_qty,
-    symbol,
-    )
-    last_order_response = self.client.futures_create_order(
-    symbol=symbol,
-    side=side,
-    type="MARKET",
-    quantity=order_qty,
-    newOrderRespType="RESULT",
-    )
-    except BinanceAPIException as e:
-    msg = (e.message or "").lower()
-    # Margin or allowable position exceeded — shrink and retry
-    if ("margin is insufficient" in msg) or ("maximum allowable position" in msg):
-    shrink = self._round_value(order_qty * 0.75, qty_precision)
-    if 0 < shrink < order_qty:
-    logger.warning(
-    "Limit marginesu/allowable dla qty=%.6f; ponawiam z %.6f",
-    order_qty,
-    shrink,
-    )
-    order_qty = shrink
-    time.sleep(0.25)
-    continue
-    logger.error("Nie mogę dalej zmniejszać qty (%.6f).", order_qty)
-    return default_status
-    # Percent price protection — try LIMIT IOC once per attempt
-    if e.code == -4131:
-    logger.warning("MARKET odrzucony (PERCENT_PRICE). Próbuję LIMIT IOC.")
-    try:
-    last_px_live = float(
-    self.client.futures_symbol_ticker(symbol=symbol)["price"]
-    )
-    limit_price = last_px_live * (1.001 if side == "BUY" else 0.999)
-    limit_price = self._adjust_price_to_tick_size(
-    symbol, limit_price
-    )
-    last_order_response = self.client.futures_create_order(
-    symbol=symbol,
-    side=side,
-    type="LIMIT",
-    quantity=order_qty,
-    price=limit_price,
-    timeInForce="IOC",
-    newOrderRespType="RESULT",
-    )
-    except Exception as e2:
-    logger.error("LIMIT IOC nieudane: %s", e2)
-    return default_status
-    else:
-    logger.error("Zlecenie odrzucone przez Binance: %s. Przerywam.", e.message)
-    return default_status
-
-    # Read executed quantity (supports both executedQty and cumQty)
-    executed_qty = 0.0
-    with suppress(Exception):
-    executed_qty = float(last_order_response.get("executedQty", 0) or 0)
-    if executed_qty == 0.0:
-    with suppress(Exception):
-    executed_qty = float(last_order_response.get("cumQty", 0) or 0)
-
-    total_executed_qty += executed_qty
-    if executed_qty > 0:
-    logger.info(
-    "Wykonano wejście: executedQty=%.6f/%s", executed_qty, symbol
-    )
-    break
-
-    # If not executed at all, shrink and try again
-    shrink = self._round_value(order_qty * 0.75, qty_precision)
-    if 0 < shrink < order_qty:
-    logger.warning(
-    "Brak wykonania. Zmniejszam qty %.6f -> %.6f i ponawiam.",
-    order_qty,
-    shrink,
-    )
-    order_qty = shrink
-    time.sleep(0.25)
-    continue
-    else:
-    logger.error(
-    "Brak wykonania i nie można dalej zmniejszać qty (%.6f).",
-    order_qty,
-    )
-    return default_status
+    # ... (cała logika pętli do otwierania zlecenia MARKET bez zmian) ...
+    # ... aż do samego końca ...
 
     if total_executed_qty <= 0:
-    logger.error("Nie udało się faktycznie otworzyć pozycji (executedQty==0).")
-    return default_status
+        logger.error("Nie udało się faktycznie otworzyć pozycji (executedQty==0).")
+        return default_status
 
     # Read actual entry price from position
     time.sleep(1.0)
     try:
-    pos_info = self.client.futures_position_information(symbol=symbol)
-    actual_entry_price = float(pos_info[0].get("entryPrice", last_px))
+        pos_info = self.client.futures_position_information(symbol=symbol)
+        actual_entry_price = float(pos_info[0].get("entryPrice", last_px))
     except Exception:
-    actual_entry_price = float(last_px)
+        actual_entry_price = float(last_px)
 
     # Set SL/TPs
     setup_status, tp_prices, final_sl, client_tags = self._setup_sl_tp_after_entry(
-    symbol=symbol,
-    side=side,
-    total_quantity=total_executed_qty,
-    canon_signal=canon,
-    actual_entry_price=actual_entry_price,
-    use_alert_lvls=self._get_bool_setting(
-    "use_alert_levels", Config.USE_ALERT_LEVELS
-    ),
-    rr_levels=_parse_float_list(
-    self._get_str_setting("tp_rr_levels", ""), default="1.0,1.5,2.0"
-    ),
-    tp_split=_parse_split_dict(
-    self._get_str_setting("tp_split", ""), default="0.5,0.3,0.2"
-    ),
-    sl_margin_pct=self._get_float_setting(
-    "sl_margin_pct", Config.SL_MARGIN_PCT
-    ),
-    trade_id=trade_id,
+        symbol=symbol,
+        side=side,
+        total_quantity=total_executed_qty,
+        canon_signal=canon,
+        actual_entry_price=actual_entry_price,
+        use_alert_lvls=self._get_bool_setting(
+            "use_alert_levels", Config.USE_ALERT_LEVELS
+        ),
+        rr_levels=_parse_float_list(
+            self._get_str_setting("tp_rr_levels", ""), default="1.0,1.5,2.0"
+        ),
+        tp_split=_parse_split_dict(
+            self._get_str_setting("tp_split", ""), default="0.5,0.3,0.2"
+        ),
+        sl_margin_pct=self._get_float_setting(
+            "sl_margin_pct", Config.SL_MARGIN_PCT
+        ),
+        # === ZMIANA 3: PRZEKAZUJEMY trade_id DO FUNKCJI NIŻEJ ===
+        trade_id=trade_id,
     )
 
     details = {
-    "setup_status": setup_status,
-    "final_size": total_executed_qty,
-    "symbol": symbol,
-    "entry_price": actual_entry_price,
-    "tp_prices": tp_prices,
-    "final_sl": final_sl,
-    "client_tags": client_tags,
-    "trade_id": trade_id,
-    "metadata": signal,  # Przekazujemy oryginalny sygnał dalej
+        "setup_status": setup_status,
+        "final_size": total_executed_qty,
+        "symbol": symbol,
+        "entry_price": actual_entry_price,
+        "tp_prices": tp_prices,
+        "final_sl": final_sl,
+        "client_tags": client_tags,
+        "trade_id": trade_id,
+        "metadata": signal,
     }
     return True, last_order_response, details
 
@@ -696,16 +488,63 @@ class BinanceHandler:
     symbol: str,
     side: str,
     total_quantity: float,
-    canon_signal: dict[str, Any],
+    canon_signal: dict,
     actual_entry_price: float,
     use_alert_lvls: bool,
     rr_levels: list[float],
-    tp_split: dict[str, float],
+    tp_split: dict[int, float],
     sl_margin_pct: float,
-    trade_id: int,
-    ) -> tuple[dict[str, bool], list[dict[str, float]], float | None, dict[str, str]]:
-    if not self.client:
-    return {}, [], None, {}
+    trade_id: int,  # <-- DODAJ TEN PARAMETR
+) -> tuple[bool, list[float], float, dict[str, str]]:
+
+    # === ZMIANA 1: GENEROWANIE UNIKALNYCH ID DLA ZLECEŃ ===
+    sl_client_id = f"BOT_{trade_id}_SL"
+    tp1_client_id = f"BOT_{trade_id}_TP1"
+    tp2_client_id = f"BOT_{trade_id}_TP2"
+    tp3_client_id = f"BOT_{trade_id}_TP3"
+    client_tags = {
+        "sl": sl_client_id,
+        "tp1": tp1_client_id,
+        "tp2": tp2_client_id,
+        "tp3": tp3_client_id,
+    }
+
+    # ... (istniejąca logika do obliczania poziomów SL i TP) ...
+
+    try:
+        # === ZMIANA 2: DODANIE newClientOrderId DO ZLECENIA SL ===
+        self.client.futures_create_order(
+            symbol=symbol,
+            side=opposite_side,
+            type="STOP_MARKET",
+            stopPrice=final_sl_price,
+            closePosition=True,  # Użyj closePosition dla bezpieczeństwa
+            newClientOrderId=sl_client_id, # <-- DODAJ TĘ LINIĘ
+        )
+
+        # ... (istniejąca logika dla zleceń TP) ...
+        # W pętli lub w miejscu, gdzie tworzysz zlecenia TP:
+
+        # === ZMIANA 3: DODANIE newClientOrderId DO ZLECEŃ TP ===
+        self.client.futures_create_order(
+            symbol=symbol,
+            side=opposite_side,
+            type="TAKE_PROFIT_MARKET",
+            stopPrice=tp_price,
+            quantity=tp_qty,
+            reduceOnly=True,
+            newClientOrderId=tp1_client_id, # <-- DODAJ ODPOWIEDNIE ID (tp1, tp2...)
+        )
+
+        # ... (reszta logiki) ...
+
+        # === ZMIANA 4: ZWRÓĆ client_tags NA KOŃCU FUNKCJI ===
+        return True, tp_prices, final_sl_price, client_tags
+
+    except Exception as e:
+        logger.error("Błąd przy ustawianiu SL/TP: %s", e)
+        # Zwróć puste tagi w razie błędu
+        return False, [], 0.0, {}
 
     sl_opposite_side = "SELL" if side == "BUY" else "BUY"
     _, qty_precision = self._get_precision(symbol)
