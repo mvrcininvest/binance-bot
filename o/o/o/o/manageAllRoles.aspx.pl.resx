@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="AddRemove" type="System.String">
+    <value>Dodaj/Usuń użytkowników</value>
+  </data>
+  <data name="AddRole" type="System.String">
+    <value>Dodaj rolę</value>
+  </data>
+  <data name="AreYouSure" type="System.String">
+    <value>Czy na pewno chcesz usunąć rolę: </value>
+  </data>
+
+
+  <data name="Back" type="System.String">
+    <value>Wstecz</value>
+  </data>
+  <data name="CreateNewRole" type="System.String">
+    <value>Utwórz nową rolę</value>
+  </data>
+  <data name="Delete" type="System.String">
+    <value>Usuń</value>
+  </data>
+  <data name="Instructions" type="System.String">
+    <value>Można opcjonalnie dodawać role lub grupy, które umożliwiają zezwalanie grupom użytkowników na dostęp do określonych folderów w witrynie sieci Web lub odmawianie dostępu do tych folderów. Na przykład można tworzyć role, takie jak „Menedżerowie”, „Sprzedaż” lub „Członkowie”, a każda z nich może mieć inne uprawnienia dostępu do określonych folderów.</value>
+  </data>
+  <data name="Manage" type="System.String">
+    <value>Zarządzaj</value>
+  </data>
+  <data name="ManageRoles" type="System.String">
+    <value>Zarządzaj rolami</value>
+  </data>
+  <data name="NewRoleName" type="System.String">
+    <value>Nowa nazwa roli:</value>
+  </data>
+  <data name="No" type="System.String">
+    <value>Nie</value>
+  </data>
+  <data name="RoleName" type="System.String">
+    <value>Nazwa roli</value>
+  </data>
+  <data name="UserManagement" type="System.String">
+    <value>Zarządzanie użytkownikami</value>
+  </data>
+  <data name="Yes" type="System.String">
+    <value>Tak</value>
+  </data>
+
+</root>

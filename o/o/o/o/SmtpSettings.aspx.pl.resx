@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+
+    <data name="AuthenticationInfoNote" type="System.String">
+        <value>&lt;b&gt;Uwaga:&lt;/b&gt; Aby uzyskać więcej informacji na temat uwierzytelniania na serwerze poczty e-mail, skontaktuj się z administratorem sieci.</value>
+    </data>
+    <data name="AuthenticationLabel" type="System.String">
+        <value>Uwierzytelnianie:</value>
+    </data>
+    <data name="BasicRadioButtonText" type="System.String">
+        <value>Podstawowe</value>
+    </data>
+    <data name="BasicAuthDesc" type="System.String">
+        <value>Zaznacz tę opcję, jeśli serwer poczty e-mail wymaga jawnego przesłania nazwy użytkownika i hasła podczas wysyłania wiadomości e-mail.</value>
+    </data>
+    <data name="ConfirmationText" type="System.String">
+        <value>Zapisano ustawienia SMTP.</value>
+    </data>
+    <data name="FromLabel" type="System.String">
+        <value>Od:</value>
+    </data>
+    <data name="Instructions" type="System.String">
+        <value>Na tej stronie można zarządzać ustawieniami SMTP, od których zależy, jak wysyłane są wiadomości e-mail z aplikacji sieci Web. Jeśli serwer poczty e-mail wymaga zalogowania się w celu wysłania wiadomości e-mail, określ typ uwierzytelniania wymagany przez serwer oraz, jeśli to konieczne, nazwę użytkownika i hasło, jakie mają być używane.</value>
+    </data>
+    <data name="NoneRadioButtonText" type="System.String">
+        <value>Brak</value>
+    </data>
+    <data name="NTLMAuthDesc" type="System.String">
+        <value>Zaznacz tę opcję, jeśli serwer poczty e-mail znajduje się w sieci lokalnej i łączysz się z nim, posługując się poświadczeniami systemu Windows.</value>
+    </data>
+    <data name="NTLMRadioButtonText" type="System.String">
+        <value>NTLM (uwierzytelnianie systemu Windows)</value>
+    </data>
+    <data name="SenderUserNameLabel" type="System.String">
+        <value>Nazwa&amp;nbsp;user&amp;nbsp;nadawcy:</value>
+    </data>
+    <data name="SenderPasswordLabel" type="System.String">
+        <value>Hasło&amp;nbsp;nadawcy:</value>
+    </data>
+    <data name="ServerNameLabel" type="System.String">
+        <value>Nazwa&amp;nbsp;serwera:</value>
+    </data>
+    <data name="ServerPortLabel" type="System.String">
+        <value>Port&amp;nbsp;serwera:</value>
+    </data>
+    <data name="Title" type="System.String">
+        <value>Konfiguruj ustawienia SMTP</value>
+    </data>
+    <data name="TitleForSite" type="System.String">
+        <value>Konfiguruj ustawienia SMTP witryny:</value>
+    </data>
+    <data name="UnexpectedSmtpField" type="System.String">
+        <value>Nieoczekiwana wartość konfiguracyjna w polu smtpauthenticate</value>
+    </data>
+    <data name="NonNegativeServerPort" type="System.String">
+        <value>* Numer portu serwera musi być dodatnią liczbą całkowitą </value>
+    </data>
+</root>

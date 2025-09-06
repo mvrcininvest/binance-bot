@@ -1,0 +1,10 @@
+127.0.0.1	localhost
+::1	localhost ip6-localhost ip6-loopback
+fe00::	ip6-localnet
+ff00::	ip6-mcastprefix
+ff02::1	ip6-allnodes
+ff02::2	ip6-allrouters
+172.21.0.2	trading-bot
+13.227.219.114 testnet.binance.vision
+162.159.136.234 discord.gg
+162.159.136.234 gateway-us-east1-b.discord.gg

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Title00" type="System.String">
+    <value>Karta Dostawca Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolProviderTab01" type="System.String">
+    <value>Karta Dostawca Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolProviderTab02" type="System.String">
+    <value>Użyj karty &lt;span class=UI&gt;Dostawca&lt;/span&gt; Narzędzia administrowania witryną sieci Web, aby zarządzać sposobem, w jaki program ASP.NET magazynuje dane funkcji aplikacji, takich jak konta użytkowników, role oraz inne ustawienia.</value>
+  </data>
+  <data name="Introduction01" type="System.String">
+    <value>Wprowadzenie</value>
+  </data>
+  <data name="Introduction02" type="System.String">
+    <value>Program ASP.NET używa klas dostawców do zarządzania magazynowaniem danych dla różnych funkcji, takich jak członkostwo i zarządzanie rolami. Klasa dostawcy to składnik, który ujawnia określoną funkcję programu ASP.NET, taką jak zarządzanie kontami użytkowników w członkostwie. Każda z funkcji aplikacji wymaga magazynowania danych. Mimo że każda klasa dostawcy wykonuje te same funkcje aplikacji, każda z klas może magazynować dane w różny sposób. Na przykład różne klasy dostawców członkostwa ASP.NET mogą przechowywać informacje o koncie użytkownika, korzystając z następujących sposobów:</value>
+  </data>
+  <data name="Introduction03" type="System.String">
+    <value>W bazie danych programu Microsoft SQL Server. </value>
+  </data>
+  <data name="Introduction04" type="System.String">
+    <value>W usłudze Microsoft Windows Active Directory.</value>
+  </data>
+  <data name="Introduction05" type="System.String">
+    <value>W niestandardowej bazie danych użytkownika.</value>
+  </data>
+  <data name="Introduction06" type="System.String">
+    <value>Każda z tych klas dostawców nadal wykonuje ten sam podstawowy zestaw zadań związanych z zarządzaniem kont użytkownika, a użytkownik obsługuje klasy dostawców w aplikacji w taki sam sposób.</value>
+  </data>
+  <data name="ConfiguringProvidersintheWebSiteAdministrationTool01" type="System.String">
+    <value>Konfigurowanie dostawców w Narzędziu do administrowania witryną sieci Web</value>
+  </data>
+  <data name="ConfiguringProvidersintheWebSiteAdministrationTool02" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web umożliwia używanie innych klas dostawców dla funkcji aplikacji, takich jak członkostwo i role. Program ASP.NET jest instalowany razem z różnymi klasami dostawców dla każdego typu funkcji aplikacji. Na przykład program ASP.NET ma klasę dostawcy dla członkostwa, które magazynuje informacje w bazie danych programu SQL Server (&lt;span class=LanguageKeyword&gt;AspNetSqlMembershipProvider&lt;/span&gt;) oraz inne, które magazynują informacje o członkostwie w usłudze Active Directory.</value>
+  </data>
+  <data name="ManagingProviderSettings01" type="System.String">
+    <value>Zarządzanie ustawieniami dostawców</value>
+  </data>
+  <data name="ManagingProviderSettings02" type="System.String">
+    <value>Narzędzia administrowania witryną sieci Web można używać do zmieniania i testowania dostawców dla witryny sieci Web. Aplikacja może używać jednego dostawcy dla funkcji aplikacji lub może używać wielu różnych dostawców. </value>
+  </data>
+  <data name="ManagingProviderSettings03" type="System.String">
+    <value>Domyślnie Narzędzie do administrowania witryną sieci Web używa dostawcy &lt;span class=LanguageKeyword&gt;AspNetSqlProvider&lt;/span&gt; dla wszystkich funkcji aplikacji.</value>
+  </data>
+  <data name="ManagingProviderSettings04" type="System.String">
+    <value>Użyj Narzędzia administrowania witryną sieci Web, aby zarządzać dostawcami witryny sieci Web, korzystając z następujących sposobów:</value>
+  </data>
+  <data name="ManagingProviderSettings05" type="System.String">
+    <value>Zmień domyślnego dostawcę &lt;span class=LanguageKeyword&gt;AspNetSqlRoleProvider&lt;/span&gt; na dostawcę alternatywnego &lt;span class=LanguageKeyword&gt;AspNetWindowsTokenRoleProvider&lt;/span&gt;, jeżeli chcesz użyć lokalnych grup systemu Windows do autoryzacji ról.</value>
+  </data>
+  <data name="ManagingProviderSettings06" type="System.String">
+    <value>Określ, czy używać tego samego dostawcy dla wszystkich funkcji aplikacji czy innego dostawcy dla każdej funkcji aplikacji. Przeważnie należy wybierać indywidualnych dostawców tylko wtedy, gdy potrzebna jest ścisła kontrola nad miejscem przechowywania informacji, lub gdy musisz użyć różnych dostawców dla tylko jednej funkcji, takiej jak rola.</value>
+  </data>
+  <data name="SelectingaSingleProvidervs.DifferentProviders01" type="System.String">
+    <value>Wybieranie jednego dostawcy lub wielu dostawców</value>
+  </data>
+  <data name="SelectingaSingleProvidervs.DifferentProviders02" type="System.String">
+    <value>Witrynę sieci Web można skonfigurować do używania tego samego dostawcy dla wszystkich funkcji aplikacji. W tym przypadku wszystkie dane członkostwa oraz ról i innych elementów są przechowywane w jednym magazynie danych (zazwyczaj w jednej bazie danych). Alternatywnie można wybrać innego dostawcę dla każdej funkcji aplikacji. </value>
+  </data>
+  <data name="SelectingaSingleProvidervs.DifferentProviders03" type="System.String">
+    <value>W Narzędziu do administrowania witryną sieci Web na karcie &lt;span class=UI&gt;Dostawca&lt;/span&gt; należy najpierw wybrać, czy chcesz używać tego samego dostawcy dla wszystkich funkcji, czy wybrać dostawcę indywidualnie dla każdej funkcji aplikacji. Można wybrać następujące opcje:</value>
+  </data>
+  <data name="SelectingaSingleProvidervs.DifferentProviders04" type="System.String">
+    <value>Aby określić jednego dostawcę dla wszystkich funkcji aplikacji, kliknij opcję &lt;span class=UI&gt;Wybierz jednego dostawcę dla wszystkich danych związanych z zarządzaniem witryną&lt;/span&gt;.</value>
+  </data>
+  <data name="SelectingaSingleProvidervs.DifferentProviders05" type="System.String">
+    <value>Aby określić dostawców dla określonych funkcji aplikacji, kliknij opcję &lt;span class=UI&gt;Wybierz innego dostawcę dla każdej funkcji (zaawansowane)&lt;/span&gt;, a następnie wybierz dostawcę dla każdej funkcji aplikacji.</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider01" type="System.String">
+    <value>Konfigurowanie dostawcy programu SQL Server</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider02" type="System.String">
+    <value>Jeżeli chcesz użyć dostawcy programu SQL Server do magazynowania danych funkcji aplikacji w bazie danych programu SQL Server, musisz najpierw skonfigurować program SQL Server, tworząc odpowiednią bazę danych. Program ASP.NET zawiera narzędzie wiersza polecenia o nazwie aspnet_regsql.exe, które wykonuje to zadanie za użytkownika.</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider03" type="System.String">
+    <value>Plik wykonywalny aspnet_regsql.exe znajduje się w folderze WINDOWS\Microsoft.NET\Framework\versionNumber na serwerze sieci Web. Narzędzie aspnet_regsql.exe jest używane do tworzenia bazy danych programu SQL oraz dodawania lub usuwania opcji z istniejącej bazy danych.</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider04" type="System.String">
+    <value>Plik wykonywalny aspnet_regsql.exe można uruchomić bez żadnych argumentów wiersza polecenia, aby uruchomić kreatora, który pomoże użytkownikowi w określeniu informacji o połączeniu dla programu SQL Server oraz w zainstalowaniu lub usunięciu elementów bazy danych dla wszystkich obsługiwanych funkcji. Plik ten można również uruchomić jako narzędzie wiersza polecenia, aby skonfigurować elementy bazy danych dla indywidualnych funkcji.</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider05" type="System.String">
+    <value>Aby uruchomić kreatora aspnet_regsql.exe, uruchom plik wykonywalny aspnet_regsql.exe bez żadnych argumentów wiersza polecenia, tak jak pokazano w następującym przykładzie.</value>
+  </data>
+  <data name="ConfiguringtheSQLServerProvider06" type="System.String">
+    <value>Aby zobaczyć Pomoc online i uzyskać informacje o dodatkowych opcjach dostępnych w narzędziu aspnet_regsql.exe, użyj opcji /?.</value>
+  </data>
+  <data name="BehindtheScenes01" type="System.String">
+    <value>Dodatkowe informacje</value>
+  </data>
+  <data name="BehindtheScenes02" type="System.String">
+    <value>Karta &lt;span class=UI&gt;Dostawca&lt;/span&gt; zarządza ustawieniami konfiguracji przechowywanymi w pliku Web.config dla aplikacji. Dokładnie ustawienia zarządzane przy użyciu karty &lt;span class=UI&gt;Dostawca&lt;/span&gt; istnieją w sekcjach &amp;lt;membership&amp;gt; i &amp;lt;roleManager&amp;gt; pliku konfiguracji.</value>
+  </data>
+  <data name="BehindtheScenes03" type="System.String">
+    <value>Następujący kod to plik Web.config generowany przez Narzędzie do administrowania witryną sieci Web po określeniu dostawcy &lt;span class=LanguageKeyword&gt;AspNetWindowsTokenRoleProvider&lt;/span&gt;, który ma być używany do zarządzania rolami.</value>
+  </data>
+  <data name="MoreInformation01" type="System.String">
+    <value>Więcej informacji</value>
+  </data>
+  <data name="MoreInformation02" type="System.String">
+    <value>Aby uzyskać więcej informacji, zobacz następujące sekcje odwołania klasy programu .NET Framework oraz schematu ustawień programu ASP.NET:</value>
+  </data>
+  <data name="MoreInformation03" type="System.String">
+    <value>Element membership (schemat ustawień programu ASP.NET)</value>
+  </data>
+  <data name="MoreInformation04" type="System.String">
+    <value>Element profile (schemat ustawień programu ASP.NET)</value>
+  </data>
+  <data name="MoreInformation05" type="System.String">
+    <value>Element roleManager Element (schemat ustawień programu ASP.NET)</value>
+  </data>
+  <data name="SeeAlso01" type="System.String">
+    <value>Zobacz też</value>
+  </data>
+  <data name="SeeAlso02" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web - Przegląd</value>
+  </data>
+  <data name="SeeAlso03" type="System.String">
+    <value>Karta Zabezpieczenia Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso04" type="System.String">
+    <value>Karta Aplikacje Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso05" type="System.String">
+    <value>Ustawienia wewnętrzne Narzędzia administrowania witryną sieci Web</value>
+  </data>
+</root>

@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Title00" type="System.String">
+    <value>Karta Aplikacje Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolApplicationTab01" type="System.String">
+    <value>Karta Aplikacje Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolApplicationTab02" type="System.String">
+    <value>Użyj karty &lt;span class=UI&gt;Aplikacja&lt;/span&gt; Narzędzia administrowania witryną sieci Web, aby zarządzać często używanymi ustawieniami związanymi z aplikacją i witryną sieci Web.</value>
+  </data>
+  <data name="Introduction01" type="System.String">
+    <value>Wprowadzenie</value>
+  </data>
+  <data name="Introduction02" type="System.String">
+    <value>Użyj karty &lt;span class=UI&gt;Aplikacja&lt;/span&gt;, aby zarządzać następującymi ustawieniami:</value>
+  </data>
+  <data name="Introduction03" type="System.String">
+    <value>Pary nazwa/wartość ustawień aplikacji. </value>
+  </data>
+  <data name="Introduction04" type="System.String">
+    <value>Ustawienia aplikacji to pary nazwa/wartość. Reprezentują one konfigurowany tekst wartości w aplikacji sieci Web. Użyj ustawień aplikacji do magazynowania niestandardowych informacji o konfiguracji aplikacji, takich jak ścieżki plików, adres URL usługi XML sieci Web, często używany tekst lub dowolne informacje potrzebne do zarządzania w centralnej lokalizacji oraz z możliwością łatwego wprowadzenia zmiany.</value>
+  </data>
+  <data name="Introduction05" type="System.String">
+    <value>Ważne: Ustawienia aplikacji są przechowywane w pliku konfiguracji jako zwykły tekst, dlatego należy zachować odpowiednie środki ostrożności podczas ich używania. Nie przechowuj poufnych informacji, takich jak nazwy użytkowników, hasła lub parametry połączenia z bazą danych w ustawieniach aplikacji.</value>
+  </data>
+  <data name="Introduction06" type="System.String">
+    <value>Ustawienia protokołu SMTP (Simple Mail Transfer Protocol).</value>
+  </data>
+  <data name="Introduction07" type="System.String">
+    <value>Jeżeli witryna wymaga dostępności wysyłania wiadomości e-mail (na przykład w celu wysłania użytkownikom hasła), należy określić serwer SMTP używany przez witrynę.</value>
+  </data>
+  <data name="Introduction08" type="System.String">
+    <value>Stan aplikacji.</value>
+  </data>
+  <data name="Introduction09" type="System.String">
+    <value>Aplikację można przełączyć do trybu offline (zamknąć ją) w celu wykonania konserwacji lub w celu przełączenia do trybu online bazy danych nowego programu Microsoft SQL Server Express.</value>
+  </data>
+  <data name="Introduction10" type="System.String">
+    <value>Debugowanie i śledzenie.</value>
+  </data>
+  <data name="Introduction11" type="System.String">
+    <value>Debugowanie i śledzenie umożliwia diagnozowanie i rozwiązywanie problemów występujących w aplikacji sieci Web. Służą one przede wszystkim do używania w czasie projektowania. Włączenie debugowania powoduje, że strony w witrynie sieci Web są kompilowane przy użyciu informacji, których program .NET Framework lub debuger Microsoft Visual Studio mogą użyć do sprawdzenia kodu. Włączenie śledzenia powoduje, że strony generują informacje o indywidualnych żądaniach sieci Web, nagłówkach HTTP wysyłanych za pomocą żądań, o stanie kontrolek na stronie oraz inne szczegółowe informacje dotyczące przetwarzania strony. </value>
+  </data>
+  <data name="ConfiguringApplicationSettings01" type="System.String">
+    <value>Konfigurowanie ustawień aplikacji</value>
+  </data>
+  <data name="ConfiguringApplicationSettings02" type="System.String">
+    <value>Podczas tworzenia ustawienia aplikacji określana jest nazwa i wartość tworzonego ustawienia. Umożliwia to uzyskanie dostępu do ustawienia w aplikacji przy użyciu właściwości &lt;span class=LanguageKeyword&gt;AppSettings&lt;/span&gt; klasy &lt;span class=LanguageKeyword&gt;ConfigurationSettings&lt;/span&gt;. Jeżeli przykładowo zdefiniujesz ustawienie aplikacji o nazwie AppName z wartością reprezentującą nazwę aplikacji, możesz użyć jej do ustawienia nagłówka strony, tak jak pokazano w następującym przykładzie kodu.</value>
+  </data>
+  <data name="ConfiguringApplicationSettings03" type="System.String">
+    <value>[Visual Basic]</value>
+  </data>
+  <data name="ConfiguringApplicationSettings04" type="System.String">
+    <value></value>
+  </data>
+  <data name="ConfiguringApplicationSettings05" type="System.String">
+    <value>[C#]</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline01" type="System.String">
+    <value>Przełączanie aplikacji do trybu online i trybu offline</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline02" type="System.String">
+    <value>Jeżeli chcesz dokonać konserwacji witryny sieci  Web, możesz przełączyć ją do trybu offline. Powoduje to zamknięcie procesu obsługującego witrynę, tak że witryna nie będzie już obsługiwać stron. Następnie można edytować strony lub inne pliki bez ryzyka, że jakaś strona będzie żądana w czasie edytowania, co mogłoby spowodować błąd. Przełączenie aplikacji do trybu offline jest użyteczne również w przypadku, gdy pracujesz z programem SQL Server Standard i chcesz wymienić lub dodać plik bazy danych .mdf do aplikacji. Jeżeli aplikacja jest uruchomiona, nie można dołączać nowych plików .mdf.</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline03" type="System.String">
+    <value>Po zakończeniu edytowania plików albo dodawania lub zmieniania plików .mdf można ponownie przełączyć aplikację do trybu online.</value>
+  </data>
+  <data name="ConfiguringSMTPSettings01" type="System.String">
+    <value>Konfigurowanie ustawień SMTP</value>
+  </data>
+  <data name="ConfiguringSMTPSettings02" type="System.String">
+    <value>Niektóre funkcje witryny sieci Web wymagają możliwości wysyłania przez aplikację wiadomości e-mail. Aby wysłać wiadomość e-mail, aplikacja musi mieć dostęp do serwera SMTP, który przesyła dalej wiadomości z aplikacji do adresata poczty. </value>
+  </data>
+  <data name="ConfiguringSMTPSettings03" type="System.String">
+    <value>Program IIS) zawiera serwer wirtualny SMTP, który nie jest instalowany domyślnie. Jeżeli chcesz mieć możliwość wysyłania wiadomości e-mail z komputera, zainstaluj serwer SMTP przy użyciu apletu &lt;span class=UI&gt;Dodawanie lub usuwanie programów&lt;/span&gt; w Panelu sterowania systemu Microsoft Windows. Serwer SMTP jest dostępny jako składnik systemu Windows jako część programu IIS. Po zainstalowaniu serwera SMTP programu IIS można skonfigurować go przy użyciu konsoli Internet Information Services Management. Aby uzyskać szczegółowe informacje dotyczące sposobu instalowania wirtualnego serwera SMTP programu IIS, zobacz stronę wyszukiwania bazy wiedzy Knowledge Base (KB).</value>
+  </data>
+  <data name="ConfiguringSMTPSettings04" type="System.String">
+    <value>Uwaga:  Jeśli na komputerze zostanie zainstalowany serwer SMTP, należy zastosować środki ostrożności, aby upewnić się, że na serwerze nie ma luki i nie może być używany do wysyłania wiadomości-śmieci. Aby uzyskać więcej informacji na temat, w jaki sposób pomóc zabezpieczyć wirtualny serwer SMTP programu IIS, przejdź do strony Microsoft.com i wyszukaj zabezpieczenia SMTP.</value>
+  </data>
+  <data name="ConfiguringSMTPSettings05" type="System.String">
+    <value>Jeżeli nie chcesz instalować serwera SMTP programu IIS lub aplikacja będzie uruchamiana na innym komputerze, skontaktuj się administratorem sieci lub serwera sieci Web, aby uzyskać informacje dotyczące ustawień konfiguracji serwera SMTP.</value>
+  </data>
+  <data name="ConfiguringSMTPSettings06" type="System.String">
+    <value>W następującej tabeli opisano ustawienia protokołu SMTP.</value>
+  </data>
+  <data name="ConfiguringSMTPSettings07" type="System.String">
+    <value>Ustawienie
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings08" type="System.String">
+    <value>Opis
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings09" type="System.String">
+    <value>
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings10" type="System.String">
+    <value>Nazwa serwera
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings11" type="System.String">
+    <value>Nazwa serwera SMTP. Nazwa domyślna to &lt;span class=code&gt;localhost&lt;/span&gt;; oznacza ona, że program ASP.NET używa serwera SMTP na serwerze lokalnym. Zazwyczaj jest to domyślny wirtualny serwer SMTP. W innym przypadku jest to nazwa serwera SMTP dostępnego w sieci.
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings12" type="System.String">
+    <value>
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings13" type="System.String">
+    <value>Port serwera
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings14" type="System.String">
+    <value>Port na serwerze SMTP. Domyślnie jest to port 25.
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings15" type="System.String">
+    <value>
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings16" type="System.String">
+    <value>Od
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings17" type="System.String">
+    <value>Adres e-mail wyświetlany w nagłówku &lt;span class=UI&gt;Od:&lt;/span&gt; wiadomości e-mail wysyłanych przez witrynę sieci Web.
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings18" type="System.String">
+    <value>
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings19" type="System.String">
+    <value>Uwierzytelnianie
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings20" type="System.String">
+    <value>Typ uwierzytelniania używany przez serwer SMTP, jeżeli uwierzytelnianie jest używane. Jeżeli serwer SMTP używa &lt;span class=UI&gt;Uwierzytelnienia podstawowego&lt;/span&gt;, podaj nazwę konta i hasło konta użytkownika uprawnionego do przesyłania dalej wiadomości e-mail za pośrednictwem serwera.</value>
+  </data>
+  <data name="ConfiguringSMTPSettings21" type="System.String">
+    <value>Nazwa użytkownika i hasło &lt;span class=UI&gt;Uwierzytelniania podstawowego&lt;/span&gt; są przechowywane w zwykłym tekście w pliku Web.config.
+</value>
+  </data>
+  <data name="ConfiguringSMTPSettings22" type="System.String">
+    <value>
+</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing01" type="System.String">
+    <value>Konfigurowanie debugowania i śledzenia</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing02" type="System.String">
+    <value>Musisz mieć poświadczenia administracyjne na komputerze, na którym uruchomiona jest aplikacja sieci Web, aby zmieniać jego ustawienia debugowania i śledzenia.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing03" type="System.String">
+    <value>Aby zarządzać funkcjami debugowania i śledzenia, kliknij opcję &lt;span class=UI&gt;Konfiguruj debugowanie i śledzenie&lt;/span&gt;, a następnie ustaw następujące opcje:</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing04" type="System.String">
+    <value>Włącz debugowanie</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing05" type="System.String">
+    <value>Wybierz tę opcję, aby włączyć debugowanie dla wszystkich stron w witrynie sieci Web. </value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing06" type="System.String">
+    <value>Przechwytuj informacje o śledzeniu</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing07" type="System.String">
+    <value>Wybierz tę opcję, aby włączyć śledzenie dla wszystkich stron witryny sieci Web. Jeżeli to pole wyboru jest zaznaczone, włączone są pozostałe opcje na stronie.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing08" type="System.String">
+    <value>Jeżeli ustawiono opcję przechwytywania informacji o śledzeniu, można dokonać następujących wyborów: </value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing09" type="System.String">
+    <value>Wyświetl informacje o śledzeniu na oddzielnych stronach</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing10" type="System.String">
+    <value>Wybierz tę opcję, aby dołączyć informacje o śledzeniu na dole stron sieci Web w witrynie. Jeżeli nie wyświetlasz informacji o śledzeniu na indywidualnych stronach, informacje są nadal przechwytywane. Aby wyświetlić informacje o śledzeniu, możesz zarządzać strony Trace.axd dla witryny sieci Web, która działa jako przeglądarka informacji o śledzeniu.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing11" type="System.String">
+    <value>Tylko żądania lokalne</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing12" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlać informacje o śledzeniu tylko na żądanie z serwera hosta sieci Web (localhost).</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing13" type="System.String">
+    <value>Wszystkie żądania</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing14" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlać informacje o śledzeniu na dowolnym komputerze.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing15" type="System.String">
+    <value>W obszarze &lt;span class=UI&gt;Wybierz kolejność sortowania wyników śledzenia&lt;/span&gt; w następujący sposób określ sposób wyświetlania informacji o śledzeniu:</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing16" type="System.String">
+    <value>Według czasu</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing17" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlić informacje o śledzeniu w kolejności ich przechwytywania.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing18" type="System.String">
+    <value>Według kategorii</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing19" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlić informacje o śledzeniu w kategoriach zdefiniowanych przez użytkownika.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing20" type="System.String">
+    <value>Liczba żądań śledzenia do buforowania</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing21" type="System.String">
+    <value>Wprowadź liczbę żądań śledzenia przechowywaną na serwerze. Buforowane informacje można wyświetlać przy użyciu przeglądarki śledzenia (http://server/application/trace.axd). Domyślna wartość to 10. Jeżeli nie zostanie wybrana opcja &lt;span class=UI&gt;najnowsze wyniki śledzenia&lt;/span&gt;, a zostanie osiągnięty limit, śledzenie jest automatycznie wyłączane.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing22" type="System.String">
+    <value>W obszarze &lt;span class=UI&gt;Wybierz wyniki śledzenia do buforowania&lt;/span&gt; określ sposób wyświetlania wyniku śledzenia w następujący sposób:</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing23" type="System.String">
+    <value>Najnowsze wyniki śledzenia</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing24" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlić najnowsze wyniki śledzenia oraz odrzucić starsze dane niemieszczące się w limicie wskazanym przez opcję &lt;span class=UI&gt;Liczba buforowanych żądań śledzenia&lt;/span&gt;.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing25" type="System.String">
+    <value>Najstarsze wyniki śledzenia</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing26" type="System.String">
+    <value>Wybierz tę opcję, aby wyświetlać informacje o śledzeniu dla żądań do czasu osiągnięcia limitu określonego w polu &lt;span class=UI&gt;Liczba buforowanych żądań śledzenia&lt;/span&gt;.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing27" type="System.String">
+    <value>Uwaga: po zakończeniu rozwiązywania problemów z witryną sieci Web wyłącz debugowanie i śledzenie, aby uzyskać maksymalną wydajność aplikacji sieci Web.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing28" type="System.String">
+    <value>Informacje o zabezpieczeniach: Gdy na stronie jest włączone śledzenie, informacje o śledzeniu mogą być wyświetlane w dowolnej przeglądarce, która zażąda strony z serwera. Ponieważ śledzenie wyświetla poufne informacje, takie jak wartości zmiennych serwera, może to oznaczać, że istnieje luka w zabezpieczeniach. Upewnij się, że śledzenie strony zostało wyłączone przed opublikowaniem aplikacji sieci Web na serwerze produkcyjnym. </value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing29" type="System.String">
+    <value>Aby skonfigurować niestandardową stronę błędu dla witryny sieci Web, kliknij polecenie &lt;span class=UI&gt;Definiuj domyślną stronę błędu&lt;/span&gt;, a następnie określ następujące ustawienia:</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing30" type="System.String">
+    <value>Użyj domyślnego komunikatu o błędzie</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing31" type="System.String">
+    <value>Wybierz tę opcję, aby użyć domyślnej strony błędu.</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing32" type="System.String">
+    <value>Określ adres URL strony, która będzie używana jako domyślna strona błędów</value>
+  </data>
+  <data name="ConfiguringDebuggingandTracing33" type="System.String">
+    <value>Wybierz tę opcję, aby użyć niestandardowej strony błędu, a następnie wybierz stronę do użycia.</value>
+  </data>
+  <data name="BehindtheScenes01" type="System.String">
+    <value>Dodatkowe informacje</value>
+  </data>
+  <data name="BehindtheScenes02" type="System.String">
+    <value>Karta &lt;span class=UI&gt;Aplikacja&lt;/span&gt; udostępnia prosty interfejs sieci Web do zarządzania ustawieniami konfiguracji, które są przechowywane w pliku Web.config aplikacji.</value>
+  </data>
+  <data name="ApplicationSettings01" type="System.String">
+    <value>Ustawienia aplikacji</value>
+  </data>
+  <data name="ApplicationSettings02" type="System.String">
+    <value>Ustawienia zarządzane za pomocą funkcji &lt;span class=UI&gt;Ustawienia aplikacji&lt;/span&gt; karty &lt;span class=UI&gt;Aplikacja&lt;/span&gt; znajdują się w sekcji &lt;appUstawienia&gt; pliku Web.config aplikacji sieci Web. Jest to sekcja wstępnie zdefiniowanej konfiguracji udostępniana przez program .NET Framework. Wyróżnione wiersze w następującym kodzie to przykładowy plik konfiguracji generowany po skorzystaniu z Narzędzia administrowania witryną sieci Web do utworzenia ustawienia aplikacji o nazwie &lt;span class=code&gt;ApplicationName&lt;/span&gt;.</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline01" type="System.String">
+    <value>Przełączanie aplikacji do trybu online i trybu offline</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline02" type="System.String">
+    <value>W sekcji &amp;lt;httpRuntime&amp;gt; pliku Web.config znajduje się ustawienie offline dla witryny sieci Web. Wyróżnione wiersze w następującym kodzie generowanym po skorzystaniu z Narzędzia administrowania witryną sieci Web do przełączenia aplikacji do trybu offline.</value>
+  </data>
+  <data name="TakingApplicationsOfflineandOnline03" type="System.String">
+    <value>Gdy ustawienie &lt;span class=LanguageKeyword&gt;httpRuntime&lt;/span&gt; jest wyłączone, program ASP.NET nie tworzy obiektu System.AppDomain dla aplikacji do czasu otrzymania żądania. W wyniku tego nie można uruchomić aplikacji sieci Web.</value>
+  </data>
+  <data name="SMTPSettings01" type="System.String">
+    <value>Ustawienia SMTP</value>
+  </data>
+  <data name="SMTPSettings02" type="System.String">
+    <value>Ustawienia zarządzane za pomocą funkcji &lt;span class=UI&gt;Ustawienia SMTP&lt;/span&gt; karty &lt;span class=UI&gt;Aplikacja&lt;/span&gt; znajdują się w sekcji &amp;lt;mailSettings&amp;gt; pliku Web.config witryny sieci Web, która jest elementem podrzędnym elementu &amp;lt;system.net&amp;gt; (a nie elementu &amp;lt;system.web&amp;gt;). Wyróżnione wiersze w następującym kodzie są generowane po skorzystaniu z Narzędzia administrowania witryną sieci Web do określenia ustawień SMTP.</value>
+  </data>
+  <data name="DebuggingandTracing01" type="System.String">
+    <value>Debugowanie i śledzenie</value>
+  </data>
+  <data name="DebuggingandTracing02" type="System.String">
+    <value>Ustawienia zarządzane za pomocą funkcji &lt;span class=UI&gt;Debugowanie i śledzenie&lt;/span&gt; karty &lt;span class=UI&gt;Aplikacja&lt;/span&gt; znajdują się w sekcjach &lt;trace&gt;, &lt;compilation&gt; i &lt;customErrors&gt; pliku Web.config. Następujący kod jest przykładowym plikiem konfiguracji generowanym po skorzystaniu z Narzędzia administrowania witryną sieci Web do włączenia śledzenia i debugowania oraz ustanowienia domyślnej niestandardowej strony błędu.</value>
+  </data>
+  <data name="DebuggingandTracing03" type="System.String">
+    <value>W tym przykładzie debugowanie i śledzenie są włączone, śledzenie jest wyświetlane na stronach żądanych tylko z serwera sieci Web, wyniki śledzenia są sortowane według kategorii, a 10 najnowszych wyników śledzenia jest buforowanych w celu wyświetlenia. Domyślna strona błędu to myErrorPage.aspx.</value>
+  </data>
+  <data name="MoreInformation01" type="System.String">
+    <value>Więcej informacji</value>
+  </data>
+  <data name="MoreInformation02" type="System.String">
+    <value>Aby uzyskać więcej informacji, zapoznaj się z następującymi informacjami odwołania klasy programu .NET Framework i schematu ustawień programu ASP.NET:</value>
+  </data>
+  <data name="MoreInformation03" type="System.String">
+    <value>System.Configuration.ConfigurationSettings</value>
+  </data>
+  <data name="MoreInformation04" type="System.String">
+    <value>Element compilation (schemat ustawień programu ASP.NET)</value>
+  </data>
+  <data name="MoreInformation05" type="System.String">
+    <value>Element customErrors (schemat ustawień ASP.NET)</value>
+  </data>
+  <data name="MoreInformation06" type="System.String">
+    <value>Element trace (schemat ustawień programu ASP.NET)</value>
+  </data>
+  <data name="SeeAlso01" type="System.String">
+    <value>Zobacz też</value>
+  </data>
+  <data name="SeeAlso02" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web - Przegląd</value>
+  </data>
+  <data name="SeeAlso03" type="System.String">
+    <value>Karta Zabezpieczenia Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso04" type="System.String">
+    <value>Karta Dostawca Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso05" type="System.String">
+    <value>Ustawienia wewnętrzne Narzędzia administrowania witryną sieci Web</value>
+  </data>
+</root>

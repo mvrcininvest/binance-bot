@@ -1,0 +1,15 @@
+.env
+data/
+*.db
+__pycache__/
+*.log
+.git
+.alembic/
+.backup_*/
+*.sqlite
+.idea
+.vscode
+*.bak
+*.bak.*
+*~
+*.pyc

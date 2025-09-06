@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="ErrorEncountered" type="System.String">
+    <value>Wystąpił błąd. Wróć na poprzednią stronę i spróbuj ponownie.</value>
+  </data>
+  <data name="FollowingMayHelp" type="System.String">
+    <value>Poniższy komunikat może pomóc w zdiagnozowaniu problemu: </value>
+  </data>  
+  <data name="HowDoIUse" type="System.String">
+    <value>Jak korzystać z tego narzędzia</value>
+  </data>
+  <data name="RemoteAccessNotAllowed" type="System.String">
+    <value>Dostęp zdalny do tego narzędzia nie jest możliwy.</value>
+  </data>
+  <data name="ReturnToPrev" type="System.String">
+    <value>Powrót do poprzedniej strony</value>
+  </data>  
+  <data name="WebAdminTool" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web</value>
+  </data>
+
+</root>

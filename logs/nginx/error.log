@@ -1,0 +1,162 @@
+2025/08/24 16:26:41 [error] 31#31: *1 open() "/etc/nginx/html/webhook/test" failed (2: No such file or directory), client: 172.21.0.1, server: _, request: "POST /webhook/test HTTP/1.1", host: "localhost"
+2025/08/24 16:29:10 [error] 31#31: *2 "/etc/nginx/html/index.html" is not found (2: No such file or directory), client: 91.224.92.17, server: _, request: "GET / HTTP/1.1", host: "38.242.149.192:80"
+2025/08/24 16:54:27 [error] 23#23: *13 connect() failed (111: Connection refused) while connecting to upstream, client: 172.21.0.1, server: _, request: "POST /webhook/test HTTP/1.1", upstream: "http://172.21.0.4:5000/webhook/test", host: "localhost"
+2025/08/24 17:00:45 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:00:51 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:00:57 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:04 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:10 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:18 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:27 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:39 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:01:58 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:02:29 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:03:26 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:04:32 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:05:38 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:06:44 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:07:50 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:08:56 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:10:02 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:11:08 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:12:14 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:13:20 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:14:27 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:15:33 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:16:38 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:17:44 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:18:50 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:19:56 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:21:02 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:22:08 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:23:14 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:24:20 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:25:27 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:26:33 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:27:38 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:28:44 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:29:50 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:30:57 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:32:04 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:33:10 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:34:16 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 17:35:22 [emerg] 1#1: host not found in upstream "trading-bot-v91:5000" in /etc/nginx/nginx.conf:7
+2025/08/24 21:06:45 [error] 22#22: *277 connect() failed (113: Host is unreachable) while connecting to upstream, client: 91.224.92.17, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192:80"
+2025/08/26 20:17:06 [error] 30#30: *957 connect() failed (113: Host is unreachable) while connecting to upstream, client: 91.224.92.17, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192:80"
+2025/08/26 20:18:38 [error] 30#30: *959 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/26 20:48:50 [error] 30#30: *990 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/27 17:36:26 [error] 30#30: *2021 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/27 17:41:30 [error] 30#30: *2025 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/27 19:46:45 [error] 30#30: *2119 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/27 20:12:00 [error] 30#30: *2129 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 19:15:02 [error] 30#30: *3482 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 19:18:34 [error] 30#30: *3484 connect() failed (113: Host is unreachable) while connecting to upstream, client: 170.64.209.18, server: _, request: "GET /.env HTTP/1.1", upstream: "http://172.21.0.4:5000/.env", host: "38.242.149.192"
+2025/08/28 19:18:37 [error] 30#30: *3486 connect() failed (113: Host is unreachable) while connecting to upstream, client: 170.64.209.18, server: _, request: "GET /.git/config HTTP/1.1", upstream: "http://172.21.0.4:5000/.git/config", host: "38.242.149.192"
+2025/08/28 19:20:06 [error] 30#30: *3488 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 19:25:10 [error] 30#30: *3490 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 22:40:37 [error] 30#30: *3636 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 22:45:41 [error] 30#30: *3642 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 22:50:45 [error] 30#30: *3646 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 22:55:48 [error] 30#30: *3648 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:00:52 [error] 30#30: *3650 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:05:55 [error] 30#30: *3652 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:10:59 [error] 30#30: *3654 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:12:39 [error] 30#30: *3656 connect() failed (113: Host is unreachable) while connecting to upstream, client: 107.175.141.10, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192:80"
+2025/08/28 23:16:03 [error] 30#30: *3658 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:17:37 [error] 30#30: *3660 connect() failed (113: Host is unreachable) while connecting to upstream, client: 196.251.117.38, server: _, request: "GET /.env HTTP/1.1", upstream: "http://172.21.0.4:5000/.env", host: "38.242.149.192"
+2025/08/28 23:18:03 [error] 30#30: *3662 connect() failed (113: Host is unreachable) while connecting to upstream, client: 79.124.58.198, server: _, request: "GET /actuator/gateway/routes HTTP/1.1", upstream: "http://172.21.0.4:5000/actuator/gateway/routes", host: "38.242.149.192:80"
+2025/08/28 23:21:06 [error] 30#30: *3664 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:26:10 [error] 30#30: *3666 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/28 23:26:48 [error] 30#30: *3668 connect() failed (113: Host is unreachable) while connecting to upstream, client: 91.224.92.17, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192:80"
+2025/08/29 08:17:16 [error] 30#30: *3998 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/29 08:22:10 [error] 30#30: *4000 connect() failed (113: Host is unreachable) while connecting to upstream, client: 3.132.23.201, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192"
+2025/08/29 08:22:20 [error] 30#30: *4002 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/29 08:23:19 [error] 30#30: *4004 connect() failed (113: Host is unreachable) while connecting to upstream, client: 3.132.23.201, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192"
+2025/08/29 08:23:48 [error] 30#30: *4006 connect() failed (113: Host is unreachable) while connecting to upstream, client: 91.224.92.17, server: _, request: "GET / HTTP/1.1", upstream: "http://172.21.0.4:5000/", host: "38.242.149.192:80"
+2025/08/29 08:43:54 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:43:55 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:43:56 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:43:58 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:43:59 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:44:02 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:44:06 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:44:13 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:44:27 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:44:53 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:45:45 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:46:46 [emerg] 1#1: unknown log format "$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for"" in /etc/nginx/nginx.conf:26
+2025/08/29 08:47:33 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:34 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:35 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:36 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:38 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:40 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:44 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:47:51 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:48:05 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 08:48:32 [emerg] 1#1: "http" directive is not allowed here in /etc/nginx/nginx.conf:7
+2025/08/29 09:19:22 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:23 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:24 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:25 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:27 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:29 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:33 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:40 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:19:54 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:20:20 [emerg] 1#1: unknown directive "cat" in /etc/nginx/nginx.conf:2
+2025/08/29 09:58:32 [error] 22#22: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.2:5000/health", host: "localhost"
+2025/08/29 10:20:15 [error] 22#22: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.2:5000/health", host: "localhost"
+2025/08/29 10:50:37 [error] 22#22: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.3:5000/health", host: "localhost"
+2025/08/29 11:40:57 [error] 22#22: *31 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.3:5000/health", host: "localhost"
+2025/08/29 11:45:36 [error] 22#22: *33 connect() failed (111: Connection refused) while connecting to upstream, client: 172.21.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.3:5000/health", host: "localhost"
+2025/08/29 11:45:57 [error] 22#22: *35 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.3:5000/health", host: "localhost"
+2025/08/29 11:46:15 [error] 22#22: *37 connect() failed (111: Connection refused) while connecting to upstream, client: 172.21.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.3:5000/health", host: "localhost"
+2025/08/29 11:48:40 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/29 11:48:46 [error] 30#30: *3 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/29 11:50:14 [error] 22#22: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.2:5000/health", host: "localhost"
+2025/08/30 12:44:02 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 01:41:13 [error] 30#30: *475 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 02:42:15 [error] 30#30: *507 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 03:35:01 [error] 30#30: *539 connect() failed (111: Connection refused) while connecting to upstream, client: 34.212.75.30, server: _, request: "POST /webhook/tradingview HTTP/1.1", upstream: "http://172.21.0.4:5000/webhook/tradingview", host: "38.242.149.192"
+2025/08/31 03:43:16 [error] 30#30: *546 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 04:44:19 [error] 30#30: *583 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 05:45:20 [error] 30#30: *612 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 06:46:21 [error] 30#30: *642 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 07:47:23 [error] 30#30: *683 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 08:22:57 [error] 30#30: *702 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 09:13:50 [error] 30#30: *748 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 09:59:38 [error] 30#30: *778 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 10:35:16 [error] 30#30: *815 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 10:45:25 [error] 30#30: *819 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 10:55:34 [error] 30#30: *824 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 11:00:35 [error] 30#30: *826 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 11:05:38 [error] 30#30: *829 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 11:15:48 [error] 30#30: *833 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 11:20:48 [error] 30#30: *835 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 11:46:11 [error] 30#30: *847 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 12:11:33 [error] 30#30: *862 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 13:02:24 [error] 30#30: *887 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 13:27:47 [error] 30#30: *902 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 14:28:48 [error] 30#30: *939 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 14:54:12 [error] 30#30: *950 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 15:55:13 [error] 30#30: *985 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 16:00:17 [error] 30#30: *987 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 16:25:42 [error] 30#30: *999 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/08/31 19:06:28 [error] 30#30: *1086 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/01 19:35:47 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/02 17:09:08 [error] 30#30: *771 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/02 20:49:44 [error] 30#30: *2416 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/03 15:27:32 [error] 30#30: *3045 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 19:11:26 [error] 30#30: *3943 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 19:31:34 [error] 30#30: *3954 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 21:32:08 [error] 30#30: *4012 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 22:02:39 [error] 30#30: *4032 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 22:33:10 [error] 30#30: *4052 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 22:43:16 [error] 30#30: *4057 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/04 22:53:25 [error] 30#30: *4068 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/05 11:35:33 [error] 30#30: *4575 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/05 20:50:34 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/05 21:16:28 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/05 21:41:45 [error] 30#30: *13 connect() failed (113: Host is unreachable) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"
+2025/09/06 09:48:53 [error] 30#30: *1 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: _, request: "GET /health HTTP/1.1", upstream: "http://172.21.0.4:5000/health", host: "localhost"

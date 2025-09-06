@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Title00" type="System.String">
+    <value>Karta Zabezpieczenia Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolSecurityTab01" type="System.String">
+    <value>Karta Zabezpieczenia Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="WebSiteAdministrationToolSecurityTab02" type="System.String">
+    <value>Użyj karty &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; Narzędzia administrowania witryną sieci Web do zarządzania regułami zabezpieczania określonych zasobów w aplikacji sieci Web. Program ASP.NET korzysta z systemu zabezpieczeń, który umożliwia ograniczanie dostępu do określonych kont użytkownika lub ról, do których należą konta użytkownika. Za pomocą karty &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; można zarządzać kontami, rolami i regułami dostępu do witryny sieci Web. Przed użyciem karty &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; po raz pierwszy użyj &lt;span class=UI&gt;Kreatora konfigurowania zabezpieczeń&lt;/span&gt; do konfigurowania podstawowych ustawień zabezpieczeń dla witryny sieci Web.</value>
+  </data>
+  <data name="Introduction01" type="System.String">
+    <value>Wprowadzenie</value>
+  </data>
+  <data name="Introduction02" type="System.String">
+    <value>Zabezpieczenia programu ASP.NET opierają się na koncepcji kont użytkowników, ról oraz reguł dostępu i umożliwiają ograniczenie dostępu do zasobów aplikacji sieci Web do określonych kont użytkowników. Ustawienia zabezpieczeń są ustanawianie za pomocą kombinacji ustawień konfiguracji oraz danych przechowywanych w bazie danych (lub innym magazynie danych). Konta użytkownika i tworzone role są przechowywane w bazie danych, a reguły dostępu są przechowywane w pliku Web.config.</value>
+  </data>
+  <data name="Introduction03" type="System.String">
+    <value>Aplikację można skonfigurować do używania następujących typów zabezpieczeń, które zależą od sposobu używania witryny sieci Web:</value>
+  </data>
+  <data name="Introduction04" type="System.String">
+    <value>Uwierzytelnianie oparte na formularzach (&lt;span class=UI&gt;Z Internetu&lt;/span&gt;)</value>
+  </data>
+  <data name="Introduction05" type="System.String">
+    <value>Uwierzytelnianie oparte na formularzach jest używane w witrynach sieci Web dostępnych w Internecie. Korzysta ono z systemu członkostwa programu ASP.NET, aby zarządzać indywidualnymi kontami użytkownika i grupami (rolami). Informacje o koncie użytkownika są przechowywane w lokalnej bazie danych lub w bazie danych programu Microsoft SQL Server. Formantu logowania programu ASP.NET można użyć do utworzenia strony logowania, za pomocą której użytkownicy mogą wprowadzić swoje poświadczenia. </value>
+  </data>
+  <data name="Introduction06" type="System.String">
+    <value>Zintegrowane uwierzytelnianie systemu Microsoft Windows (&lt;span class=UI&gt;Z sieci lokalnej&lt;/span&gt;)</value>
+  </data>
+  <data name="Introduction07" type="System.String">
+    <value>Uwierzytelnianie systemu Windows współdziała z zabezpieczeniami systemu Windows, używając poświadczeń logowania podanych przez użytkownika podczas logowania do systemu. Dlatego uwierzytelnianie systemu Windows nadaje się do używania w intranecie, gdzie użytkownicy są zalogowani do sieci opartej na systemie Windows. Nie trzeba tworzyć strony logowania, ponieważ użytkownicy są automatycznie logowani do aplikacji przy użyciu poświadczeń systemu Windows.</value>
+  </data>
+  <data name="Introduction08" type="System.String">
+    <value>Użyj sekcji &lt;span class=UI&gt;Użytkownicy&lt;/span&gt; na karcie &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt;, aby wykonać następujące zadania:</value>
+  </data>
+  <data name="Introduction09" type="System.String">
+    <value>Tworzenie, edytowanie i usuwanie zarejestrowanych kont użytkowników dla witryny sieci Web.</value>
+  </data>
+  <data name="Introduction10" type="System.String">
+    <value>Wyświetl listę wszystkich zarejestrowanych kont użytkowników witryny sieci Web.</value>
+  </data>
+  <data name="Introduction11" type="System.String">
+    <value>Zmień metodę uwierzytelniania używaną przez witrynę sieci Web. </value>
+  </data>
+  <data name="Introduction12" type="System.String">
+    <value>Uwaga: Możesz tworzyć konta użytkowników  i zarządzać nimi, jeżeli została wybrana opcja &lt;span class=UI&gt;Z Internetu&lt;/span&gt; jako typ uwierzytelniania (jeżeli używasz uwierzytelniania opartego na formularzach). Jeżeli została wybrana opcja &lt;span class=UI&gt;Z sieci lokalnej&lt;/span&gt; jako typ uwierzytelniania (jeżeli używasz zintegrowanego uwierzytelniania systemu Windows), nie możesz zarządzać indywidualnymi kontami użytkowników. Jeżeli zmienisz typ uwierzytelniania, wszystkie informacje o użytkownikach, które zostały utworzone, zostaną utracone. Ponadto reguły dostępu mogą już nie działać w sposób, w jaki zostały skonfigurowane. Zazwyczaj należy wybierać typ uwierzytelniania tylko wtedy, gdy najpierw została skonfigurowana witryna sieci Web.</value>
+  </data>
+  <data name="Introduction13" type="System.String">
+    <value>Użyj sekcji &lt;span class=UI&gt;Role&lt;/span&gt; karty &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt;, aby zgrupować konta użytkownika. Ułatwia to przypisywanie uprawnień (autoryzacja).</value>
+  </data>
+  <data name="Introduction14" type="System.String">
+    <value>Użyj sekcji &lt;span class=UI&gt;Reguły dostępu&lt;/span&gt; na karcie &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt;, aby zezwolić lub odmówić dostępu dla określonych stron do określonych kont użytkowników lub do wszystkich kont użytkowników należących do określonej roli. Zazwyczaj można użyć reguły dostępu do ograniczania stron dla niektórych kont użytkowników.</value>
+  </data>
+  <data name="CreatingUsers01" type="System.String">
+    <value>Tworzenie użytkowników</value>
+  </data>
+  <data name="CreatingUsers02" type="System.String">
+    <value>Możesz tworzyć konta użytkowników i zarządzać nimi, jeżeli jest ustawiony typ uwierzytelniania &lt;span class=UI&gt;Z Internetu&lt;/span&gt; (uwierzytelnianie formularzy). Aby zmienić typy uwierzytelniania, kliknij przycisk &lt;span class=UI&gt;Wybierz typ uwierzytelniania&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingUsers03" type="System.String">
+    <value>Aby utworzyć konta użytkowników</value>
+  </data>
+  <data name="CreatingUsers04" type="System.String">
+    <value>Kliknij polecenie &lt;span class=UI&gt;Utwórz użytkownika&lt;/span&gt;, a następnie podaj następujące informacje.</value>
+  </data>
+  <data name="CreatingUsers05" type="System.String">
+    <value>Nazwa użytkownika</value>
+  </data>
+  <data name="CreatingUsers06" type="System.String">
+    <value>Wprowadź nazwę dla tworzonego konta użytkownika.</value>
+  </data>
+  <data name="CreatingUsers07" type="System.String">
+    <value>Hasło</value>
+  </data>
+  <data name="CreatingUsers08" type="System.String">
+    <value>Wprowadź hasło w polu &lt;span class=UI&gt;Nazwa użytkownika&lt;/span&gt;. W hasłach rozróżniana jest wielkość liter.</value>
+  </data>
+  <data name="CreatingUsers09" type="System.String">
+    <value>Potwierdź hasło</value>
+  </data>
+  <data name="CreatingUsers10" type="System.String">
+    <value>Wprowadź ponownie &lt;span class=UI&gt;Hasło&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingUsers11" type="System.String">
+    <value>E-mail</value>
+  </data>
+  <data name="CreatingUsers12" type="System.String">
+    <value>Wprowadź adres e-mail dla &lt;span class=UI&gt;Nazwy użytkownika&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingUsers13" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web nie potwierdza, czy wpisany adres jest prawidłowym adresem e-mail, ale sprawdza, czy adres e-mail ma prawidłowy format.</value>
+  </data>
+  <data name="CreatingUsers14" type="System.String">
+    <value>Pytanie zabezpieczeń</value>
+  </data>
+  <data name="CreatingUsers15" type="System.String">
+    <value>Wprowadź pytanie, aby zadać je użytkownikowi, gdy konieczne jest zresetowanie lub przywrócenie hasła.</value>
+  </data>
+  <data name="CreatingUsers16" type="System.String">
+    <value>Odpowiedź zabezpieczeń</value>
+  </data>
+  <data name="CreatingUsers17" type="System.String">
+    <value>Wprowadź odpowiedź w polu &lt;span class=UI&gt;Pytanie zabezpieczeń&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingUsers18" type="System.String">
+    <value>Użytkownik aktywny</value>
+  </data>
+  <data name="CreatingUsers19" type="System.String">
+    <value>Wybierz tę opcję, aby włączyć to konto użytkownika jako aktywnego (bieżącego) użytkownika witryny. Jeżeli nie wybierzesz tej opcji, informacje o użytkowniku zostaną zapisane w bazie danych, ale użytkownik nie będzie mógł logować się do witryny sieci Web.</value>
+  </data>
+  <data name="CreatingUsers20" type="System.String">
+    <value>Role</value>
+  </data>
+  <data name="CreatingUsers21" type="System.String">
+    <value>Wybierz rolę dla &lt;span class=UI&gt;Nazwy użytkownika&lt;/span&gt;. Role są tworzone oddzielnie. Aby uzyskać więcej informacji, zobacz następną sekcję.</value>
+  </data>
+  <data name="CreatingRoles01" type="System.String">
+    <value>Tworzenie ról</value>
+  </data>
+  <data name="CreatingRoles02" type="System.String">
+    <value>Aby utworzyć role</value>
+  </data>
+  <data name="CreatingRoles03" type="System.String">
+    <value>Na karcie &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; kliknij opcję &lt;span class=UI&gt;Włącz role&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingRoles04" type="System.String">
+    <value>Kliknij polecenie &lt;span class=UI&gt;Twórz role lub zarządzaj nimi&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingRoles05" type="System.String">
+    <value>W polu &lt;span class=UI&gt;Nazwa nowej roli&lt;/span&gt; wprowadź nazwę dla roli, która zostanie utworzona, taką jak Administrator, Członek lub Gość, a następnie kliknij polecenie &lt;span class=UI&gt;Dodaj rolę&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingRoles06" type="System.String">
+    <value>Aby dodać konta użytkowników do ról</value>
+  </data>
+  <data name="CreatingRoles07" type="System.String">
+    <value>Na karcie &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; kliknij polecenie &lt;span class=UI&gt;Zarządzaj użytkownikami&lt;/span&gt;, a następnie kliknij polecenie &lt;span class=UI&gt;Edytuj użytkownika&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingRoles08" type="System.String">
+    <value>W obszarze &lt;span class=UI&gt;Role&lt;/span&gt; wybierz role dla konta użytkownika.</value>
+  </data>
+  <data name="CreatingAccessRules01" type="System.String">
+    <value>Tworzenie reguł dostępu</value>
+  </data>
+  <data name="CreatingAccessRules02" type="System.String">
+    <value>Aby utworzyć reguły dostępu</value>
+  </data>
+  <data name="CreatingAccessRules03" type="System.String">
+    <value>Na karcie &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; kliknij polecenie &lt;span class=UI&gt;Utwórz reguły dostępu&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingAccessRules04" type="System.String">
+    <value>Określ następujące opcje:</value>
+  </data>
+  <data name="CreatingAccessRules05" type="System.String">
+    <value>Wybierz katalog tej reguły</value>
+  </data>
+  <data name="CreatingAccessRules06" type="System.String">
+    <value>Możesz utworzyć regułę, która ma zastosowanie do całej witryny lub tylko do określonego podkatalogu. W wyświetlanej strukturze katalogów witryny sieci Web wybierz katalog, do którego jest stosowana reguła. </value>
+  </data>
+  <data name="CreatingAccessRules07" type="System.String">
+    <value>w obszarze &lt;span class=UI&gt;Reguła ma zastosowanie do&lt;/span&gt; określ sposób stosowania reguły.</value>
+  </data>
+  <data name="CreatingAccessRules08" type="System.String">
+    <value>Rola</value>
+  </data>
+  <data name="CreatingAccessRules09" type="System.String">
+    <value>Wybierz polecenie &lt;span class=UI&gt;Rola&lt;/span&gt;, a następnie na liście wybierz nazwę roli, do której jest stosowana reguła dostępu.</value>
+  </data>
+  <data name="CreatingAccessRules10" type="System.String">
+    <value>Użytkownik</value>
+  </data>
+  <data name="CreatingAccessRules11" type="System.String">
+    <value>Wybierz opcję &lt;span class=UI&gt;Użytkownik&lt;/span&gt;, a następnie wprowadź nazwę konta użytkownika, do którego jest stosowana reguła dostępu. Jeżeli używasz członkostwa ASP.NET (zabezpieczenia witryny sieci Web są ustawione na opcję &lt;span class=UI&gt;Z internetu&lt;/span&gt;), możesz również skorzystać z funkcji Wyszukaj użytkowników.</value>
+  </data>
+  <data name="CreatingAccessRules12" type="System.String">
+    <value>Wszyscy użytkownicy</value>
+  </data>
+  <data name="CreatingAccessRules13" type="System.String">
+    <value>Wybierz tę opcję, aby zastosować regułę do wszystkich odwiedzających witrynę sieci Web.</value>
+  </data>
+  <data name="CreatingAccessRules14" type="System.String">
+    <value>Uwaga: Należy zachować ostrożność podczas tworzenia reguły za pomocą opcji &lt;span class=UI&gt;Wszyscy użytkownicy&lt;/span&gt;. Ponieważ reguły są stosowane w kolejności, można niechcący utworzyć regułę zabraniającą wszystkim użytkownikom dostępu do folderu.</value>
+  </data>
+  <data name="CreatingAccessRules15" type="System.String">
+    <value>Użytkownicy anonimowi</value>
+  </data>
+  <data name="CreatingAccessRules16" type="System.String">
+    <value>Wybierz tę opcję, aby zastosować regułę tylko do anonimowych (niezarejestrowanych) kont użytkowników. </value>
+  </data>
+  <data name="CreatingAccessRules17" type="System.String">
+    <value>Zazwyczaj wybierana jest opcja &lt;span class=UI&gt;Użytkownicy anonimowi&lt;/span&gt;, aby ograniczyć dostęp (odmówić go) użytkownikom niezalogowanym.</value>
+  </data>
+  <data name="CreatingAccessRules18" type="System.String">
+    <value>Uprawnienie</value>
+  </data>
+  <data name="CreatingAccessRules19" type="System.String">
+    <value>Wybierz polecenie &lt;span class=UI&gt;Zezwól&lt;/span&gt;, aby udzielić dostępu do określonego katalogu określonemu kontu użytkownika lub roli.</value>
+  </data>
+  <data name="CreatingAccessRules20" type="System.String">
+    <value>Wybierz polecenie &lt;span class=UI&gt;Odmów&lt;/span&gt;, aby nie zezwolić na dostęp do określonego katalogu określonemu kontu użytkownika lub roli.</value>
+  </data>
+  <data name="CreatingAccessRules21" type="System.String">
+    <value>Na przykład, aby zabronić użytkownikom niezalogowanym do konta (anonimowym) wyświetlania stron w  folderze, kliknij folder, wybierz polecenie &lt;span class=UI&gt;Użytkownik anonimowy&lt;/span&gt;, a następnie wybierz polecenie &lt;span class=UI&gt;Odmów&lt;/span&gt;.</value>
+  </data>
+  <data name="CreatingAccessRules22" type="System.String">
+    <value>Czasami może być konieczne utworzenie wielu reguł dla tego samego folderu w celu ustanowienia prawidłowych uprawnień. Na przykład można utworzyć regułę, która odmawia dostępu kontom anonimowych użytkowników oraz drugą regułę, która odmawia dostępu kontom z rolą Gość. Dzięki temu tylko użytkownicy zalogowani oraz użytkownicy znajdujący się w innych grupach mogą uzyskiwać dostęp do folderu.</value>
+  </data>
+  <data name="BehindtheScenes01" type="System.String">
+    <value>Dodatkowe informacje</value>
+  </data>
+  <data name="BehindtheScenes02" type="System.String">
+    <value>Narzędzie do administrowania witryny sieci Web zarządza informacjami o zabezpieczeniach w następujących dwóch miejscach:</value>
+  </data>
+  <data name="BehindtheScenes03" type="System.String">
+    <value>Plik Web.config w katalogu głównym witryny sieci Web.</value>
+  </data>
+  <data name="BehindtheScenes04" type="System.String">
+    <value>Baza danych dostawców witryn, używana do przechowywania informacji o użytkownikach i grupach.</value>
+  </data>
+  <data name="Web.configSettings01" type="System.String">
+    <value>Ustawienia pliku Web.config</value>
+  </data>
+  <data name="Web.configSettings02" type="System.String">
+    <value>Ustawienia pliku Web.config zarządzane przez kartę &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt; to sekcje  &lt;authorization&gt;, &lt;roleManager&gt; i &lt;authentication&gt;.</value>
+  </data>
+  <data name="Web.configSettings03" type="System.String">
+    <value>Następujący przykładowy kod to plik Web.config tworzony przez Narzędzia administrowania witryną sieci Web w ograniczonym podkatalogu witryny sieci Web. Dostęp do tego podkatalogu mają administratorzy. Jest on zabroniony dla użytkowników anonimowych.</value>
+  </data>
+  <data name="Database01" type="System.String">
+    <value>Baza danych</value>
+  </data>
+  <data name="Database02" type="System.String">
+    <value>W przypadku używania domyślnego dostawcy danych Narzędzie administrowania witryną sieci Web tworzy wpisy w domyślnej bazie danych programu ASP.NET. Domyślnie baza jest tworzona w folderze App_Data witryny sieci Web. Jednak na karcie &lt;span class=UI&gt;Dostawca&lt;/span&gt; można określić, aby informacje o aplikacji dla konta użytkownika oraz role były przechowywane w innej bazie danych (na przykład pobieranie informacji o roli z bazy danych użytkowników systemu Windows). Aby uzyskać szczegółowe informacje, zobacz kartę Dostawca Narzędzia administrowania witryną sieci Web.</value>
+  </data>
+  <data name="MoreInformation01" type="System.String">
+    <value>Więcej informacji</value>
+  </data>
+  <data name="MoreInformation02" type="System.String">
+    <value>Aby uzyskać więcej informacji o ustawieniach zarządzanych przez kartę &lt;span class=UI&gt;Zabezpieczenia&lt;/span&gt;, zobacz następujące tematy w dokumentacji programu .NET Framework:</value>
+  </data>
+  <data name="MoreInformation03" type="System.String">
+    <value>Zarządzanie użytkownikami za pomocą członkostwa programu ASP.NET</value>
+  </data>
+  <data name="MoreInformation04" type="System.String">
+    <value>Ograniczanie dostępu do witryn programu ASP.NET w sieci Web</value>
+  </data>
+  <data name="MoreInformation05" type="System.String">
+    <value>Konfiguracja programu ASP.NET - Przegląd</value>
+  </data>
+  <data name="SeeAlso01" type="System.String">
+    <value>Zobacz też</value>
+  </data>
+  <data name="SeeAlso02" type="System.String">
+    <value>Narzędzie do administrowania witryną sieci Web - Przegląd</value>
+  </data>
+  <data name="SeeAlso03" type="System.String">
+    <value>Karta Aplikacje Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso04" type="System.String">
+    <value>Karta Dostawca Narzędzia administrowania witryną sieci Web</value>
+  </data>
+  <data name="SeeAlso05" type="System.String">
+    <value>Ustawienia wewnętrzne Narzędzia administrowania witryną sieci Web</value>
+  </data>
+</root>

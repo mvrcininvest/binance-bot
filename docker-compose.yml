@@ -1,0 +1,229 @@
+# Trading Bot v9.1 Enhanced Docker Compose
+# Production-ready setup with monitoring and persistence
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: trading-postgres-v91
+    hostname: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_bot_v91}
+      POSTGRES_USER: ${POSTGRES_USER:-trading_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups:rw
+    healthcheck:
+      # Uwaga: $${…} => rozwinięcie wewnątrz kontenera (nie przez Compose)
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - trading-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    hostname: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 300s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - trading-network
+
+  # Main Trading Bot
+  trading-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VERSION: "9.1"
+    container_name: trading-bot-v91
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    hostname: trading-bot
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:8001:8001"  # Diagnostic API
+      - "127.0.0.1:8002:8002"  # Diagnostic Dashboard
+    env_file:
+      - .env
+    environment:
+      - MPLCONFIGDIR=/tmp/matplotlib
+      - BOT_VERSION=9.1
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+      # HYBRID ULTRA-DIAGNOSTICS: New environment variables
+      - DIAGNOSTICS_ENABLED=true
+      - DIAGNOSTIC_API_ENABLED=true
+      - DIAGNOSTIC_DASHBOARD_ENABLED=true
+      - PATTERN_DETECTION_ENABLED=true
+      - PERFORMANCE_MONITORING_ENABLED=true
+    volumes:
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
+      - ./ml_models:/app/ml_models:rw
+      - ./backups:/app/backups:rw
+      - .:/app:rw
+      # HYBRID ULTRA-DIAGNOSTICS: New diagnostic volumes
+      - diagnostic-data:/app/diagnostics:rw
+      - pattern-data:/app/patterns:rw
+      - performance-data:/app/performance:rw
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G  # Zwiększone z 1G dla diagnostyki
+          cpus: '1.0'   # Zwiększone z 0.8 dla diagnostyki
+        reservations:
+          memory: 768M  # Zwiększone z 512M
+          cpus: '0.5'   # Zwiększone z 0.4
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+      - 1.0.0.1
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - trading-network
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: trading-nginx
+    hostname: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"           # MUSI być publicznie wystawione
+      # - "443:443"       # wyłączone, bo nie używasz HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx:rw
+    depends_on:
+      - trading-bot
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://localhost/health >/dev/null || exit 1"]
+      interval: 300s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - trading-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # Database backup service
+  db-backup:
+    image: postgres:15-alpine
+    container_name: trading-backup
+    hostname: backup
+    restart: "no"
+    environment:
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+      - POSTGRES_DB=${POSTGRES_DB:-trading_bot_v91}
+      - POSTGRES_USER=${POSTGRES_USER:-trading_user}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-your_secure_password}
+    volumes:
+      - ./backups:/backups:rw
+      - ./scripts:/scripts:ro
+    command: |
+      sh -c "
+        while true; do
+          echo 'Starting PostgreSQL backup...'
+          pg_dump -h postgres -U $$POSTGRES_USER -d $$POSTGRES_DB > /backups/trading_bot_$$(date +%Y%m%d_%H%M%S).sql
+          echo 'Backup completed'
+          
+          # Clean old backups
+          find /backups -name '*.sql' -mtime +$${BACKUP_RETENTION_DAYS:-7} -delete
+          
+          # Wait 6 hours
+          sleep 21600
+        done
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - trading-network
+    profiles:
+      - backup
+
+# Networks
+networks:
+  trading-network:
+    driver: bridge
+    name: trading-network-v91
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# Volumes
+volumes:
+  postgres-data:
+    name: trading-postgres-data-v91
+    driver: local
+  redis-data:
+    name: trading-redis-data-v91
+    driver: local
+  # HYBRID ULTRA-DIAGNOSTICS: New diagnostic volumes
+  diagnostic-data:
+    name: trading-diagnostic-data-v91
+    driver: local
+  pattern-data:
+    name: trading-pattern-data-v91
+    driver: local
+  performance-data:
+    name: trading-performance-data-v91
+    driver: local
+  grafana-data:
+    name: trading-grafana-data-v91
+    driver: local

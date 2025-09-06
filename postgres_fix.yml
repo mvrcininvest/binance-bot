@@ -1,0 +1,5 @@
+    environment:
+      POSTGRES_DB: trading_bot_v91
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+      PGDATA: /var/lib/postgresql/data/pgdata

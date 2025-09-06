@@ -1,0 +1,15 @@
+[0;1;32m●[0m fail2ban.service - Fail2Ban Service
+     Loaded: loaded (/lib/systemd/system/fail2ban.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Fri 2025-08-29 13:07:54 CEST; 4s ago
+       Docs: man:fail2ban(1)
+   Main PID: 8989 (fail2ban-server)
+      Tasks: 3 (limit: 9450)
+     Memory: 23.3M
+        CPU: 464ms
+     CGroup: /system.slice/fail2ban.service
+             └─8989 /usr/bin/python3 /usr/bin/fail2ban-server -xf start
+
+Aug 29 13:07:54 vmi2735602.contaboserver.net systemd[1]: Started Fail2Ban Service.
+Aug 29 13:07:55 vmi2735602.contaboserver.net fail2ban-server[8989]: 2025-08-29 13:07:55,131 fail2ban.configreader   [8989]: WARNING Wrong value for 'maxretry' in 'sshd'. Using default one: 'None'
+Aug 29 13:07:55 vmi2735602.contaboserver.net fail2ban-server[8989]: 2025-08-29 13:07:55,131 fail2ban.configreader   [8989]: WARNING Wrong value for 'maxmatches' in 'sshd'. Using default one: 'None'
+Aug 29 13:07:55 vmi2735602.contaboserver.net fail2ban-server[8989]: Server ready

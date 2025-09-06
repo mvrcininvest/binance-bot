@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>1.3</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=1.0.5000.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="ClickLinksInstruction" type="System.String">
+    <value>Ustawieniami aplikacji można zarządzać, klikając odpowiednie łącza w tabeli.</value>
+  </data>
+  <data name="CreateUser" type="System.String">
+    <value>Utwórz użytkownika</value>
+  </data>
+  <data name="CreateAccessRules" type="System.String">
+    <value>Utwórz reguły dostępu</value>
+  </data>
+  <data name="CreateOrManageRoles" type="System.String">
+    <value>Utwórz role lub zarządzaj nimi</value>
+  </data>
+  <data name="CreateRoles" type="System.String">
+    <value>Utwórz role</value>
+  </data>
+  <data name="DisableRoles" type="System.String">
+    <value>Wyłącz role</value>
+  </data>
+  <data name="Explanation" type="System.String">
+    <value>Za pomocą narzędzia administrowania witryną sieci Web można zarządzać wszystkimi ustawieniami zabezpieczeń aplikacji. Można konfigurować użytkowników i hasła (uwierzytelnianie), tworzyć role (grupy użytkowników) i tworzyć uprawnienia (reguły kontrolowania dostępu do części aplikacji).&lt;br&gt;&lt;br&gt;Informacje użytkownika są domyślnie przechowywane w bazie danych Microsoft SQL Server Express w folderze Data witryny sieci Web. Jeśli chcesz przechowywać informacje użytkownika w innej bazie danych, na karcie Dostawca wybierz innego dostawcę.</value>
+  </data>
+  <data name="ExistingRoles" type="System.String">
+    <value>Istniejące role: </value>
+  </data>
+  <data name="ExistingUsers" type="System.String">
+    <value>Istniejący użytkownicy: </value>
+  </data>
+  <data name="ProblemWithDataStore" type="System.String">
+    <value>Problem z wybranym magazynem danych</value>
+  </data>
+  <data name="RolesNotEnabled" type="System.String">
+    <value>Nie włączono ról</value>
+  </data>  
+  <data name="EnableRoles" type="System.String">
+    <value>Włącz role</value>
+  </data>  
+  <data name="ManageRoles" type="System.String">
+    <value>Zarządzaj rolami</value>
+  </data>
+  <data name="ManageUsers" type="System.String">
+    <value>Zarządzaj użytkownikami</value>
+  </data>            
+  <data name="ManageAccessRules" type="System.String">
+    <value>Zarządzaj regułami dostępu</value>
+  </data>
+  <data name="SecurityLink" type="System.String">
+    <value>Użyj Kreatora konfiguracji zabezpieczeń, aby skonfigurować zabezpieczenia krok po kroku.</value>
+  </data>                            
+  <data name="SecurityManagement" type="System.String">
+    <value>Zarządzanie zabezpieczeniami</value>
+  </data>  
+  <data name="SecurityManagementForSite" type="System.String">
+    <value>Zarządzanie zabezpieczeniami dla witryny: &amp;lt; {0} &amp;gt; </value>
+  </data>  
+  <data name="SelectAuth" type="System.String">
+    <value>Wybierz typ uwierzytelniania</value>
+  </data>  
+  <data name="Users" type="System.String">
+    <value>Użytkownicy</value>
+  </data>  
+  <data name="WindowsAuthExplanation" type="System.String">
+    <value>Bieżącym typem uwierzytelniania jest &lt;b&gt;Windows&lt;/b&gt;. Dlatego zarządzanie użytkownikami za pomocą tego narzędzia jest wyłączone.</value>
+  </data>  
+  <data name="Roles" type="System.String">
+    <value>Role</value>
+  </data>  
+  <data name="AccessRules" type="System.String">
+    <value>Reguły dostępu</value>
+  </data>  
+</root>
