@@ -99,6 +99,13 @@ class Config:
         os.getenv("WEBHOOK_RATE_LIMIT_PER_SECOND", "10")
     )
 
+    # Cache TTL settings (seconds)
+    EXCHANGE_INFO_CACHE_TTL = 3600  # 1 hour
+    BALANCE_CACHE_TTL = 30          # 30 seconds  
+    PRICE_CACHE_TTL = 10            # 10 seconds
+    POSITION_CACHE_TTL = 15         # 15 seconds
+    LEVERAGE_CACHE_TTL = 300        # 5 minutes
+
     # ==== V9.1 FEATURE FLAGS ====
     # Leverage management
     USE_INDICATOR_LEVERAGE = _to_bool(os.getenv("USE_INDICATOR_LEVERAGE", "False"))
@@ -209,19 +216,19 @@ class Config:
 
     # ==== TRADING PARAMETERS ====
     # Risk management
-    DEFAULT_RISK_PERCENT = _to_float(os.getenv("DEFAULT_RISK_PERCENT", "1.0"))
-    MAX_RISK_PERCENT = _to_float(os.getenv("MAX_RISK_PERCENT", "2.0"))
-    MIN_RISK_PERCENT = _to_float(os.getenv("MIN_RISK_PERCENT", "0.5"))
+    DEFAULT_RISK_PERCENT = _to_float(os.getenv("DEFAULT_RISK_PERCENT", "2.0"))
+    MAX_RISK_PERCENT = _to_float(os.getenv("MAX_RISK_PERCENT", "4.0"))
+    MIN_RISK_PERCENT = _to_float(os.getenv("MIN_RISK_PERCENT", "1.0"))
     RISK_PER_TRADE = _to_float(
-        os.getenv("RISK_PER_TRADE", "1.0")
+        os.getenv("RISK_PER_TRADE", "2.0")
     )  # Default risk per trade
 
     # Leverage
     DEFAULT_LEVERAGE = _to_int(os.getenv("DEFAULT_LEVERAGE", "10"))
-    MAX_LEVERAGE = _to_int(os.getenv("MAX_LEVERAGE", "50"))
-    MIN_LEVERAGE = _to_int(os.getenv("MIN_LEVERAGE", "1"))
+    MAX_LEVERAGE = _to_int(os.getenv("MAX_LEVERAGE", "100"))
+    MIN_LEVERAGE = _to_int(os.getenv("MIN_LEVERAGE", "5"))
     DEFAULT_MARGIN_TYPE = os.getenv(
-        "DEFAULT_MARGIN_TYPE", "ISOLATED"
+        "DEFAULT_MARGIN_TYPE", "CROSSED"
     )  # ISOLATED or CROSSED
 
     # Stop Loss and Take Profit
@@ -236,15 +243,16 @@ class Config:
     TP3_SIZE_PERCENT = _to_float(os.getenv("TP3_SIZE_PERCENT", "30"))
 
     # Take profit risk-reward levels
-    TP_RR_LEVELS = [1.5, 3.0, 5.0]  # Default risk-reward ratios for TP levels
+    TP_RR_LEVELS = [0.5, 1.0, 1.5]  # Default risk-reward ratios for TP levels
+    ATR_SL_MULTIPLIER = 1.0
     USE_ALERT_LEVELS = _to_bool(
         os.getenv("USE_ALERT_LEVELS", "True")
     )  # Use alert-based TP levels
 
     # ==== MODE MANAGER ====
     # Trading modes
-    DEFAULT_MODE = os.getenv("DEFAULT_MODE", "normal")
-    AVAILABLE_MODES = ["conservative", "normal", "aggressive", "scalping", "emergency"]
+    DEFAULT_MODE = os.getenv("DEFAULT_MODE", "balanced")
+    AVAILABLE_MODES = ["conservative", "balanced", "aggressive", "scalping", "emergency"]
 
     # Mode configurations
     MODE_CONFIGS = {
@@ -255,11 +263,11 @@ class Config:
             "tier_minimum": "Premium",
             "require_confirmation": True,
         },
-        "normal": {
+        "balanced": {
             "risk_multiplier": 1.0,
             "max_leverage": 20,
             "max_positions": 5,
-            "tier_minimum": "Standard",
+            "tier_minimum": "Quick",
             "require_confirmation": False,
         },
         "aggressive": {

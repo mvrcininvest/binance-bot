@@ -77,7 +77,7 @@ class BotState:
     is_running: bool = False
     is_paused: bool = False
     emergency_mode: bool = False
-    current_mode: str = "normal"
+    current_mode: str = "balanced"
     start_time: Optional[datetime] = None
     last_heartbeat: Optional[datetime] = None
     open_positions: int = 0
@@ -1003,6 +1003,9 @@ class TradingBot:
             else:
                 sl_distance = abs(stop_loss - price) / price
 
+            if sl_distance == 0 or sl_distance < 0.001:  # Minimalna odległość 0.1%
+                logger.error(f"Stop loss distance too small or zero: {sl_distance}")
+                sl_distance = 0.01  # Domyślnie 1% jeśli coś pójdzie nie tak
             position_size = risk_amount / sl_distance
             quantity = position_size / price
 

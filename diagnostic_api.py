@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Path, BackgroundTask
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
+from main import bot_instance
 from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timedelta
 from enum import Enum
@@ -23,11 +24,15 @@ from diagnostics import SystemHealthMonitor, PerformanceAnalyzer, DiagnosticRepo
 from decision_engine import DecisionEngine
 from pattern_detector import PatternDetector
 
+
 logger = logging.getLogger(__name__)
 
 # Security
 security = HTTPBearer()
 
+class ConfigUpdate(BaseModel):
+    key: str
+    value: Any
 # Pydantic models for API
 class HealthResponse(BaseModel):
     status: str
@@ -678,3 +683,40 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
+@app.get("/api/config", tags=["Configuration"])
+async def get_config():
+    """Zwraca kluczowe, bezpieczne do wyświetlenia parametry konfiguracyjne."""
+    if not bot_instance:
+        raise HTTPException(status_code=503, detail="Bot not initialized")
+
+    safe_config = {
+        "mode": bot_instance.mode_manager.get_current_mode(),
+        "emergency_enabled": bot_instance.emergency_mode,
+        "default_risk_percent": bot_instance.runtime_risk * 100,
+    }
+    return safe_config
+
+@app.post("/api/config/update", tags=["Configuration"])
+async def update_config(update: ConfigUpdate):
+    """Bezpiecznie aktualizuje parametr konfiguracyjny w bazie danych."""
+    if not bot_instance:
+        raise HTTPException(status_code=503, detail="Bot not initialized")
+
+    key = update.key
+    value = update.value
+    editable_params = ["mode", "emergency_enabled", "default_risk_percent"]
+
+    if key not in editable_params:
+        raise HTTPException(status_code=400, detail=f"Parameter '{key}' is not editable.")
+
+    logger.info(f"Dashboard requested config change: {key} -> {value}")
+
+    if key == "mode":
+        await bot_instance.set_mode(str(value))
+    elif key == "emergency_enabled":
+        await bot_instance.toggle_emergency_mode()
+    elif key == "default_risk_percent":
+        bot_instance.set_risk(float(value) / 100)
+
+    return {"status": "success", "message": f"Parameter '{key}' updated."}

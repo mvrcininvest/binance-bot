@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Callable, Any, List
 from threading import Lock
-
+import threading
 from binance import AsyncClient, BinanceSocketManager
 from binance.exceptions import BinanceAPIException
 
@@ -89,11 +89,17 @@ class FuturesUserStream:
             with self.connection_lock:
                 if self.running:
                     logger.warning("User stream already running")
-                    return
-
+                    return False  # ✅ Zwróć False zamiast return
+            
+                # ✅ Sprawdź czy już jest połączony
+                if self.connected:
+                    logger.info("User stream already connected")
+                    return True
+            
                 self.running = True
                 self.reconnect_attempts = 0
 
+            # ✅ Przenieś poza lock żeby uniknąć deadlock
             self.bm = BinanceSocketManager(self.client)
 
             # Get listen key
@@ -108,6 +114,7 @@ class FuturesUserStream:
             await self._connect_stream()
 
             logger.info("User data stream started successfully (v9.1)")
+            return True  # ✅ Zwróć status
 
         except Exception as e:
             logger.error(f"Failed to start user stream: {e}")
@@ -946,27 +953,36 @@ class FuturesUserStream:
 
 # v9.1 CORE: Singleton instance with enhanced management
 user_stream: Optional[FuturesUserStream] = None
-_stream_lock = Lock()
-
+_stream_lock = threading.Lock()
 
 async def initialize_user_stream(client: AsyncClient) -> Optional[FuturesUserStream]:
     """Initialize user stream with v9.1 enhancements"""
     global user_stream
 
     with _stream_lock:
-        if user_stream and user_stream.running:
+        if user_stream and user_stream.running and user_stream.connected:  # ✅ Dodaj sprawdzenie connected
             logger.warning("User stream already initialized and running")
             return user_stream
 
-    try:
-        user_stream = FuturesUserStream(client)
-        await user_stream.start()
-        logger.info("User stream initialized successfully (v9.1)")
-        return user_stream
+        try:
+            # ✅ Jeśli istnieje ale nie działa, zatrzymaj go
+            if user_stream and not user_stream.connected:
+                await user_stream.stop()
+                user_stream = None
+            
+            user_stream = FuturesUserStream(client)
+            success = await user_stream.start()  # ✅ Sprawdź status
+            
+            if success:
+                logger.info("User stream initialized successfully (v9.1)")
+                return user_stream
+            else:
+                logger.error("Failed to start user stream")
+                return None
 
-    except Exception as e:
-        logger.error(f"Failed to initialize user stream: {e}")
-        return None
+        except Exception as e:
+            logger.error(f"Failed to initialize user stream: {e}")
+            return None
 
 
 async def stop_user_stream():

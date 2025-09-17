@@ -7,7 +7,6 @@ import hashlib
 import hmac
 import json
 import logging
-logger = logging.getLogger(__name__)
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple, Any
@@ -30,104 +29,109 @@ from database import(
     create_decision_trace,
     update_decision_trace,
     log_pine_health,
-    create_pattern_alert
+    create_pattern_alert,
+    record_alert
 )
 from discord_notifications import discord_notifier
 from database import log_execution_trace, complete_execution_trace
-from bot import get_bot
 
-# v9.1 Enhanced nested models
-class VolumeContext(BaseModel):
-    institutional_flow: float | None = None
-    retest_confidence: float | None = None
-    climax_detected: bool | None = None
-    emergency_bypass: bool | None = None
 
-class FakeBreakout(BaseModel):
-    detected: bool | None = None
-    penalty_multiplier: float | None = None
-    emergency_bypass: bool | None = None
+# Wklej ten kod na górze pliku webhook.py, pod importami
 
-class V91Enhancements(BaseModel):
-    volume_context: VolumeContext | None = None
-    fake_breakout: FakeBreakout | None = None
+from typing import Optional, Any, List
+from pydantic import BaseModel, Field, field_validator
+import logging
+logger = logging.getLogger(__name__) # Upewnij się, że ta linia jest na górze pliku
 
-logger = logging.getLogger(__name__)
-
-# FastAPI app
 app = FastAPI(
     title="Binance Trading Bot Webhook v9.1",
     version="9.1",
     description="Enhanced webhook endpoint for TradingView alerts with v9.1 indicator support"
 )
 
-def get_bot():
-    """Get bot instance from FastAPI app state"""
-    return getattr(app.state, 'bot', None)
+class AlertDiagnostics(BaseModel):
+    timestamp: int
+    health: float
+    regime: str
+    regime_conf: float
+    buy_str: float
+    sell_str: float
+    zones: int
+    inst_flow: float
+    acc_ratio: float
+    fake_break: float
+    mtf_agree: float
 
 class AlertPayloadV91(BaseModel):
-    action: str = Field(..., description="buy/sell/long/short/emergency_buy/emergency_sell/close/emergency_close")
-    symbol: str = Field(..., description="e.g. BINANCE:BTCUSDT or BTCUSDT")
+    # --- Pola z alertu Pine Script ---
+    symbol: str
+    action: str
+    tier: str
+    strength: float
     price: float
-    sl: float | None = None
-    tp1: float | None = None
-    tp2: float | None = None
-    tp3: float | None = None
-    break_even: float | None = None
-    strength: float = 0.0
-    tier: str = "Standard"
+    atr: float
+    volume_ratio: float
+    session: str
+    regime: str
+    regime_confidence: float
+    mtf_agreement: float
+    leverage: int
+    version: str # <--- POPRAWKA: Zmieniono 'indicator_version' na 'version'
+    diagnostics: AlertDiagnostics
+    in_ob: bool
+    in_fvg: bool
+    ob_score: float
+    fvg_score: float
+    institutional_flow: float
+    accumulation: float
+    volume_climax: bool
+    tv_ts: int
+
+    # --- Opcjonalne pola dla logiki hybrydowej i przyszłych wersji wskaźnika ---
+    sl: Optional[float] = None
+    tp1: Optional[float] = None
+    tp2: Optional[float] = None
+    tp3: Optional[float] = None
+    break_even: Optional[float] = None
     position_size_multiplier: float = 1.0
-    pair_tier: int | None = None
-    leverage: int | None = None
-    session: str | None = None
-    timeframe: str | None = None
+    pair_tier: Optional[int] = None
+    timeframe: Optional[str] = None
+    # <--- POPRAWKA: Usunięto 'timestamp' i 'alert_id', które nie są wysyłane z Pine Script
 
-    # zagnieżdżone v9.1:
-    v91_enhancements: V91Enhancements | None = None
-    emergency_conditions: dict | None = None
-
-    # alias na version z Pine:
-    indicator_version: str = Field(alias="version")
-
-    # nowe – do opóźnień:
-    tv_ts: int | None = None             # ms since epoch (z Pine: time_close)
-    timestamp: str | None = None         # opcjonalny ISO8601 fallback
-    alert_id: str | None = None
-
-    @field_validator("indicator_version")
+    @field_validator("version", mode='before')
     @classmethod
-    def validate_version(cls, v: str) -> str:
-    # Akceptuj wszystkie wersje wskaźnika - nie blokuj na podstawie wersji
-        if isinstance(v, str) and len(v) > 0:
-            # Normalizuj do 9.1 jeśli zaczyna się od 9
-            if v.startswith("9"):
-                return "9.1"
-            # Akceptuj inne wersje też
-            return v
-        return "9.1"  # Domyślna wersjaversion: {v}")
+    def validate_version(cls, v: Any) -> str:
+        # <--- POPRAWKA: Uproszczony i bardziej odporny walidator
+        v_str = str(v)
+        if v_str.startswith("9"):
+            return v_str
+        else:
+            logger.warning(f"Unexpected indicator version: {v_str}")
+            return v_str
 
     @field_validator("action")
     @classmethod
     def normalize_action(cls, v: str) -> str:
         v = v.lower().strip()
-        mapping = {
-            "long": "buy",
-            "short": "sell",
-        }
+        mapping = {"long": "buy", "short": "sell"}
         return mapping.get(v, v)
 
     @field_validator("symbol")
     @classmethod
     def normalize_symbol(cls, v: str) -> str:
-        # BINANCE:ETHUSDT -> ETHUSDT
-        return v.split(":")[-1].upper()
+        if v.startswith('BINANCE:'):
+            v = v[8:]
+        if v.endswith('.P'):
+            v = v[:-2]
+        return v.upper()
 
     @field_validator("tier")
     @classmethod
     def validate_tier(cls, v: str) -> str:
         allowed = ["Emergency", "Platinum", "Premium", "Standard", "Quick"]
         if v not in allowed:
-            raise ValueError(f"Invalid tier: {v}. Must be one of {allowed}")
+            logger.warning(f"Invalid tier received: '{v}'. Defaulting to 'Standard'.")
+            return "Standard"
         return v
 
 
@@ -165,17 +169,15 @@ def verify_signature(payload: bytes, signature: str) -> bool:
 
 def generate_idempotency_key(alert: AlertPayloadV91) -> str:
     """Generate idempotency key for alert deduplication - v9.1 ENHANCED"""
+    # --- POPRAWKA: Używamy tv_ts (timestamp z TradingView), który jest zawsze obecny ---
     key_components = [
         alert.symbol,
         alert.action,
-        str(alert.timestamp or ""),  # ← ZMIANA: konwertuj None na pusty string
+        str(alert.tv_ts), # Używamy tv_ts zamiast nieistniejącego timestamp
         str(alert.price),
         alert.tier,
         str(alert.strength)
     ]
-
-    if alert.alert_id:
-        key_components.append(alert.alert_id)
 
     key_data = "_".join(key_components)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
@@ -204,6 +206,10 @@ def check_alert_age(alert: AlertPayloadV91) -> tuple[bool, int]:
             return True, 0
 
         max_age = Config.ALERT_MAX_AGE_SEC
+        if age_sec < 0:
+             logger.warning(f"Obliczono ujemny wiek alertu ({age_sec}s). Sprawdź synchronizację czasu na serwerze i w TradingView.")
+             return True, age_sec # Nie odrzucaj, ale zaloguj
+
         if age_sec > max_age:
             logger.warning(f"Alert odrzucony jako przestarzały: {age_sec}s > {max_age}s")
             return False, age_sec
@@ -211,21 +217,27 @@ def check_alert_age(alert: AlertPayloadV91) -> tuple[bool, int]:
         return True, age_sec
     except Exception as e:
         logger.error(f"Krytyczny błąd podczas parsowania wieku alertu: {e}", exc_info=True)
-        return True, 0 # W razie błędu parsowania, nie blokuj - na wypadek nietypowego formatu.
+        return True, 0
 
 def validate_alert_conditions(alert: AlertPayloadV91) -> tuple[bool, str]:
-    # wiek
-    ok, age = check_alert_age(alert)
-    if not ok:
-        return False, f"Alert too old: {age}s > {Config.ALERT_MAX_AGE_SEC}s"
+    # 1. Sprawdzenie wieku alertu (krytyczne)
+    is_ok, age_or_reason = check_alert_age(alert)
+    if not is_ok:
+        # Zmieniamy age_or_reason na string, aby uniknąć błędów typu
+        return False, f"Alert too old: {age_or_reason}s > {Config.ALERT_MAX_AGE_SEC}s"
 
-    # Akcje – akceptuj również emergency_* i close
+    # 2. Sprawdzenie akcji
     action = alert.action
-    if action not in ["buy", "sell", "emergency_buy", "emergency_sell", "close", "emergency_close"]:
+    allowed_actions = ["buy", "sell", "emergency_buy", "emergency_sell", "close", "emergency_close"]
+    if action not in allowed_actions:
         return False, f"Unsupported action: {action}"
 
-    # Akceptuj wszystkie alerty bez dodatkowych filtrów (siła/tier/SL/TP)
-    return True, "Valid"
+    # 3. Sprawdzenie ceny
+    if alert.price <= 0:
+        return False, f"Invalid price: {alert.price}"
+
+    # Walidacja przeszła pomyślnie
+    return True, "Alert validation passed"
 
 
 # Rate limiting storage
@@ -300,344 +312,110 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check - v9.1 ENHANCED"""
-    with Session() as session:
-        try:
-            # Check database
-            db_healthy = session.execute("SELECT 1").scalar() == 1
+    """Sprawdza podstawowy stan serwera webhook i połączenia z bazą danych."""
+    try:
+        # Sprawdzamy, czy serwer jest w stanie wykonać prostą operację na bazie danych.
+        # To potwierdza, że zarówno proces webowy, jak i połączenie z DB działają.
+        with Session() as session:
+            session.execute("SELECT 1")
 
-            # Check bot instance
-            bot = get_bot()
-            bot_healthy = bot is not None and getattr(bot, "running", False)
-            bot_running = bot_healthy
-
-            # Try to read status z bota (bez twardych zależności)
-            is_paused = False
-            current_mode = Config.DEFAULT_MODE
-            emergency_enabled = False
-            try:
-                if bot and hasattr(bot, "get_status"):
-                    st = bot.get_status() or {}
-                    is_paused = bool(st.get("paused", False))
-                    current_mode = st.get("mode", current_mode)
-                    emergency_enabled = bool(st.get("emergency_mode", False))
-            except Exception:
-                pass
-
-            # Get open positions count
-            from database import get_open_positions
-            open_positions = len(get_open_positions(session))
-
-            return {
-                "status": "healthy" if (db_healthy and bot_running) else "degraded",
-                "version": "9.1",
-                "components": {
-                    "database": "healthy" if db_healthy else "unhealthy",
-                    "bot": "healthy" if bot_running else "unhealthy",
-                    "discord": "healthy"
-                },
-                "bot_status": {
-                    "running": bot_running,
-                    "paused": is_paused,
-                    "mode": current_mode,
-                    "emergency": emergency_enabled,
-                    "open_positions": open_positions
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            }
-
-        except Exception as e:
-            logger.error(f"Health check failed: {e}")
-            raise HTTPException(status_code=503, detail="Service unhealthy")
+        return {
+            "status": "healthy",
+            "version": "9.1",
+            "message": "Webhook service is running and database is connected.",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        # Jeśli wystąpi błąd, zwracamy kod 503 (Service Unavailable)
+        raise HTTPException(status_code=503, detail="Service unhealthy: Database connection failed.")
 
 
 @app.post("/webhook/tradingview")
 async def tradingview_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
+    payload: AlertPayloadV91,
     x_signature: Optional[str] = Header(None, alias="X-Signature"),
     x_tradingview_signature: Optional[str] = Header(None, alias="X-TradingView-Signature")
 ):
     """Main webhook endpoint for TradingView alerts - v9.1 ENHANCED"""
     start_time = time.time()
-    
-    # ===== DODAJ RATE LIMITING =====
+
+    # --- OSTATECZNA POPRAWKA: Pobieramy instancję bota bezpośrednio ze stanu aplikacji FastAPI ---
+    bot = request.app.state.bot
+
     client_ip = request.client.host
-    
-    # Rate limiting
     if not check_rate_limit(client_ip):
         logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
-    
-    # Loguj podejrzane IP
-    if client_ip not in ["127.0.0.1", "172.21.0.5", "172.21.0.1"]:
-        logger.info(f"🔍 Webhook from IP: {client_ip}")
-    # ===== KONIEC RATE LIMITING =====
-    
-    # Get raw payload
+
     raw_payload = await request.body()
-    
-    # Use either signature header
     signature = x_signature or x_tradingview_signature
-    
-    # Verify signature if configured and required
+
     if Config.REQUIRE_HMAC_SIGNATURE and Config.WEBHOOK_SECRET and signature:
         if not verify_signature(raw_payload, signature):
             logger.warning(f"Invalid webhook signature from {request.client.host}")
             raise HTTPException(status_code=401, detail="Invalid signature")
-    elif Config.REQUIRE_HMAC_SIGNATURE and not signature:
-        logger.warning(f"Missing webhook signature from {request.client.host}")
-        raise HTTPException(status_code=401, detail="Missing signature")
-    
+
     try:
-        # Parse JSON payload
-        payload_dict = json.loads(raw_payload)
-        
-        # Validate against schema
-        alert = AlertPayloadV91(**payload_dict)
-        
-        # Generate idempotency key
-        idempotency_key = generate_idempotency_key(alert)
-        
+        idempotency_key = generate_idempotency_key(payload)
+
         with Session() as session:
-            # Check for duplicate
             if check_idempotency(session, idempotency_key):
                 logger.info(f"Duplicate alert rejected: {idempotency_key}")
-                return WebhookResponse(
-                    status="rejected",
-                    message="Duplicate alert",
-                    data={"idempotency_key": idempotency_key},
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
-            
-            # Record alert receipt with headers
-            request_headers = dict(request.headers)
-            alert_record = AlertHistory(
+                return JSONResponse(status_code=200, content={"status": "rejected", "reason": "Duplicate alert"})
+
+            latency_metrics = {
+                "tv_ts": payload.tv_ts,
+                "tradingview_to_webhook_latency_ms": int((time.time() * 1000) - payload.tv_ts) if payload.tv_ts else None
+            }
+            record_alert(
+                session=session,
+                payload=payload.model_dump(),
+                headers=dict(request.headers),
                 idempotency_key=idempotency_key,
-                symbol=alert.symbol,
-                action=alert.action,
-                tier=alert.tier,
                 processed=False,
-                raw_payload=payload_dict,
-                headers=request_headers,
-                signature_valid=bool(signature),
-                schema_valid=True,
-                received_at=datetime.utcnow()
+                latency_metrics=latency_metrics,
+                signature_valid=bool(signature)
             )
-            session.add(alert_record)
-            session.commit()
-        
-        # Validate alert conditions
-        is_valid, validation_message = validate_alert_conditions(alert)
-        
+
+        is_valid, validation_message = validate_alert_conditions(payload)
+
         if not is_valid:
             logger.info(f"Alert validation failed: {validation_message}")
-    
-            # Update alert record
             with Session() as session:
-                alert_record = session.query(AlertHistory).filter_by(
-                    idempotency_key=idempotency_key
-                ).first()
-                if alert_record:
-                    alert_record.error = validation_message
-                    alert_record.processed = True
-                    session.commit()
-    
-            # Send immediate Discord notification for validation failure
-            try:
-                await discord_notifier.send_signal_notification(
-                    alert.dict(),
-                    accepted=False,
-                    reason=validation_message
-                )
-            except Exception as e:
-                logger.error(f"Failed to send Discord notification: {e}")
-    
-            return WebhookResponse(
-                status="rejected",
-                message=validation_message,
-                data={"symbol": alert.symbol, "tier": alert.tier},
-                processing_time_ms=int((time.time() - start_time) * 1000)
+                finalize_alert_processing(session, idempotency_key, success=False, error=validation_message)
+            await discord_notifier.send_signal_notification(
+                payload.model_dump(),
+                accepted=False,
+                reason=validation_message
             )
-        
-        # Process alert in background
-        background_tasks.add_task(process_alert_async, alert, idempotency_key, start_time)
-        
+            return JSONResponse(status_code=200, content={"status": "rejected", "reason": validation_message})
+
+        # --- OSTATECZNA POPRAWKA: Sprawdzamy, czy instancja bota jest dostępna ---
+        if not bot:
+            logger.error("FATAL: Bot instance not available for webhook processing.")
+            raise HTTPException(status_code=503, detail="Bot instance not available")
+
+        alert_dict = payload.model_dump()
+        background_tasks.add_task(bot.handle_signal, alert_dict)
+
         return WebhookResponse(
             status="accepted",
-            message="Alert accepted for processing",
+            message="Alert accepted for asynchronous processing",
             data={
-                "symbol": alert.symbol,
-                "action": alert.action,
-                "tier": alert.tier,
-                "strength": alert.strength,
-                "idempotency_key": idempotency_key
+                "symbol": payload.symbol, "action": payload.action, "tier": payload.tier,
+                "strength": payload.strength, "idempotency_key": idempotency_key
             },
             processing_time_ms=int((time.time() - start_time) * 1000)
         )
-    
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON payload: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-    except ValueError as e:
-        logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+
     except Exception as e:
         logger.error(f"Webhook error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-async def process_alert_async(self, alert_data: dict) -> dict:
-    """Process alert with diagnostics"""
-    import uuid
-    from datetime import datetime
-    import time
-    
-    start_time = time.time()
-    trace_id = str(uuid.uuid4())
-    idempotency_key = alert_data.get('idempotency_key', str(uuid.uuid4()))
-    
-    try:
-        # Log execution trace start
-        with Session() as session:
-            trace_data = {
-                'trace_id': trace_id,
-                'symbol': alert_data.get('symbol', 'UNKNOWN'),
-                'action': alert_data.get('action', 'UNKNOWN'),
-                'stage': 'received',
-                'status': 'running',
-                'message': 'Alert received for processing',
-                'context_data': {'alert_data': alert_data}
-            }
-            create_execution_trace(session, trace_data)
-        
-        # Wyciągnij diagnostykę
-        diagnostics = alert_data.get('diagnostics', {})
-        
-        if diagnostics:
-            # Przetwórz diagnostykę Pine Script
-            pine_results = await self.process_pine_diagnostics(alert_data)
-            
-            # Zapisz do bazy
-            with Session() as session:
-                # Decision trace dla śledzenia
-                decision_trace_data = {
-                    'trace_id': trace_id,
-                    'symbol': alert_data.get('symbol'),
-                    'action': alert_data.get('action'),
-                    'tier': alert_data.get('tier'),
-                    'alert_timestamp': datetime.utcnow(),
-                    'processing_stage': 'received',
-                    'final_decision': 'PENDING',
-                    'pine_health_score': diagnostics.get('health_score', 0.5),
-                    'atr_percentile': diagnostics.get('atr_percentile'),
-                    'adx_strength': diagnostics.get('adx'),
-                    'volume_profile_score': diagnostics.get('volume_quality'),
-                    'raw_alert_data': alert_data,
-                    'decision_context': {'diagnostics': diagnostics, 'pine_results': pine_results}
-                }
-                create_decision_trace(session, decision_trace_data)
-        
-        # v9.1 NEW: Calculate latency metrics if tv_ts available
-        latency_metrics = {}
-        if alert_data.get('tv_ts'):
-            webhook_received_ms = int(time.time() * 1000)
-            tradingview_to_webhook_latency = webhook_received_ms - alert_data['tv_ts']
-            latency_metrics = {
-                "tv_ts": alert_data['tv_ts'],
-                "webhook_received_ms": webhook_received_ms,
-                "tradingview_to_webhook_latency_ms": tradingview_to_webhook_latency
-            }
-            
-            # Log latency warnings
-            if tradingview_to_webhook_latency > 1000:
-                logger.warning(f"⚠️ High latency: {tradingview_to_webhook_latency}ms for {alert_data.get('symbol')}")
-            elif tradingview_to_webhook_latency > 2000:
-                logger.error(f"🚨 CRITICAL latency: {tradingview_to_webhook_latency}ms for {alert_data.get('symbol')}")
-        
-        # Przygotuj alert_dict z metadanymi
-        alert_dict = dict(alert_data)  # Kopia alert_data
-        alert_dict['idempotency_key'] = idempotency_key
-        alert_dict['received_at'] = datetime.utcnow().isoformat()
-        alert_dict['latency_metrics'] = latency_metrics
-        alert_dict['trace_id'] = trace_id
-        
-        # Pobierz instancję bota
-        from bot import get_bot
-        bot = get_bot()
-        
-        if not bot:
-            raise Exception("Bot instance not available")
-        
-        # v9.1 CORE: Process signal through bot
-        success, message = await bot.process_signal(alert_dict)
-        
-        # Update alert record
-        with Session() as session:
-            finalize_alert_processing(session, idempotency_key, success=bool(success), error=None if success else message)
-            
-            # Update decision trace
-            update_decision_trace(session, trace_id, {
-                'processing_stage': 'completed',
-                'final_decision': 'ACCEPTED' if success else 'REJECTED',
-                'processing_time_ms': int((time.time() - start_time) * 1000),
-                'completed_at': datetime.utcnow()
-            })
-        
-        # Send Discord notification
-        await discord_notifier.send_signal_notification(
-            alert_dict,
-            accepted=success,
-            reason=message,
-            trade_id=trace_id if success else None
-        )
-        
-        processing_time = (time.time() - start_time) * 1000
-        logger.info(f"Alert processed in {processing_time:.2f}ms: {'SUCCESS' if success else 'FAILED'} - {message}")
-        
-        # Complete execution trace
-        complete_execution_trace(trace_id, success, int(processing_time), message)
-        
-        return {
-            'success': success,
-            'message': message,
-            'trace_id': trace_id,
-            'processing_time_ms': processing_time
-        }
-    
-    except Exception as e:
-        logger.error(f"Failed to process alert: {e}", exc_info=True)
-        
-        processing_time_ms = int((time.time() - start_time) * 1000)
-        
-        # Complete execution trace with error
-        complete_execution_trace(trace_id, False, processing_time_ms, f"Processing error: {str(e)}")
-        
-        # Update alert record
-        with Session() as session:
-            finalize_alert_processing(session, idempotency_key, success=False, error=str(e))
-            
-            # Update decision trace if exists
-            update_decision_trace(session, trace_id, {
-                'processing_stage': 'failed',
-                'final_decision': 'ERROR',
-                'processing_time_ms': processing_time_ms,
-                'completed_at': datetime.utcnow(),
-                'error': str(e)
-            })
-        
-        # Send error notification
-        await discord_notifier.send_error_notification(
-            f"Failed to process alert: {str(e)}",
-            title="Alert Processing Error",
-            critical=True
-        )
-        
-        return {
-            'success': False,
-            'message': str(e),
-            'trace_id': trace_id,
-            'processing_time_ms': processing_time_ms
-        }
+
 
 
 @app.post("/webhook/test")
@@ -941,37 +719,6 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize on startup - v9.1 ENHANCED"""
-    logger.info("🚀 Webhook server v9.1 starting up...")
-    
-    # Validate configuration (uwzględnia testnet)
-    api_key = Config.get_api_key()
-    api_secret = Config.get_api_secret()
-    if not api_key or not api_secret:
-        logger.error(f"❌ Binance API credentials not configured! (IS_TESTNET={Config.IS_TESTNET})")
-    else:
-        logger.info(f"✅ Binance credentials detected (IS_TESTNET={Config.IS_TESTNET})")
-    
-    # Test database connection
-    with Session() as session:
-        try:
-            session.execute("SELECT 1")
-            logger.info("✅ Database connection successful")
-        except Exception as e:
-            logger.error(f"❌ Database connection failed: {e}")
-    
-    # Check bot availability
-    bot = get_bot()
-    if bot:
-        logger.info("✅ Bot instance available")
-    else:
-        logger.warning("⚠️ Bot instance not available - some endpoints will be disabled")
-    
-    logger.info(f"✅ Webhook server v9.1 ready (Mode: {Config.DEFAULT_MODE})")
-
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -1129,6 +876,28 @@ async def get_alert_diagnostics():
     except Exception as e:
         logger.error(f"Failed to get alert diagnostics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/webhook")
+async def webhook_fallback(request: Request, background_tasks: BackgroundTasks):
+    """Fallback webhook endpoint - redirects to main handler"""
+    # Parse raw JSON
+    raw_body = await request.body()
+    try:
+        payload_dict = json.loads(raw_body)
+        payload = AlertPayloadV91(**payload_dict)
+        return await tradingview_webhook(request, background_tasks, payload)
+    except Exception as e:
+        logger.error(f"Webhook fallback error: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+
+def get_bot():
+    """Get bot instance from app state"""
+    try:
+        from main import bot_instance
+        return bot_instance
+    except ImportError:
+        logger.error("Cannot import bot_instance from main")
+        return None
 
 if __name__ == "__main__":
     # Custom logging config to reduce spam
@@ -1156,3 +925,183 @@ if __name__ == "__main__":
         log_level="info",
         access_log=True
     )
+
+    # W webhook.py, dodaj ten kod pod istniejącymi klasami Pydantic
+
+# --- Modele dla nowego API Dashboardu ---
+
+class StatsResponse(BaseModel):
+    totalPnL: float
+    todayPnL: float
+    winRate: float
+    totalTrades: int
+    activePositions: int
+
+class StatusResponse(BaseModel):
+    status: str
+    botStatus: str
+    tradingViewWebhook: str
+    lastHeartbeat: Optional[str] = None
+
+class Position(BaseModel):
+    symbol: str
+    side: str
+    size: float
+    entryPrice: float
+    markPrice: float
+    pnl: float
+    pnlPercentage: float
+
+class PositionsResponse(BaseModel):
+    positions: List[Position]
+
+class Signal(BaseModel):
+    id: str
+    symbol: str
+    type: str
+    price: float
+    timestamp: str
+    status: str
+
+class SignalsResponse(BaseModel):
+    signals: List[Signal]
+
+class CommandRequest(BaseModel):
+    command: str
+    params: Optional[Dict[str, Any]] = None
+
+# W webhook.py, wklej ten kod na samym końcu pliku
+
+# --- API Endpoints dla Dashboardu ---
+
+@app.get("/api/stats", response_model=StatsResponse, tags=["Dashboard API"])
+async def get_stats():
+    """Zwraca kluczowe statystyki wydajności bota."""
+    bot = get_bot()
+    if not bot:
+        raise HTTPException(status_code=503, detail="Bot instance not available")
+    
+    try:
+        # Używamy istniejącej funkcji do pobierania statystyk
+        perf = await asyncio.to_thread(get_profile_performance, days=90)
+        
+        # Pobieramy PnL z dzisiaj
+        today_perf = await asyncio.to_thread(get_profile_performance, days=1)
+
+        return StatsResponse(
+            totalPnL=perf.get("total_pnl", 0.0),
+            todayPnL=today_perf.get("total_pnl", 0.0),
+            winRate=perf.get("win_rate", 0.0),
+            totalTrades=perf.get("total_trades", 0),
+            activePositions=len(bot.active_positions)
+        )
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not retrieve bot statistics.")
+
+@app.get("/api/status", response_model=StatusResponse, tags=["Dashboard API"])
+async def get_status():
+    """Zwraca status operacyjny bota."""
+    bot = get_bot()
+    if not bot:
+        return StatusResponse(
+            status="offline",
+            botStatus="stopped",
+            tradingViewWebhook="unknown",
+            lastHeartbeat=None
+        )
+
+    bot_state = bot.get_status()
+    bot_status_str = "active"
+    if bot_state.get("emergency_mode"):
+        bot_status_str = "emergency"
+    elif bot_state.get("paused"):
+        bot_status_str = "paused"
+
+    return StatusResponse(
+        status="online",
+        botStatus=bot_status_str,
+        tradingViewWebhook="accessible", # Zakładamy, że jest ok, skoro API odpowiada
+        lastHeartbeat=bot_state.get("last_heartbeat")
+    )
+
+@app.get("/api/positions", response_model=PositionsResponse, tags=["Dashboard API"])
+async def get_positions():
+    """Zwraca listę aktywnych pozycji z giełdy."""
+    try:
+        # [cite_start]Używamy binance_handler do pobrania danych na żywo [cite: 1]
+        raw_positions = await asyncio.to_thread(binance_handler.check_positions)
+        
+        positions_list = []
+        for p in raw_positions:
+            entry_price = float(p.get("entryPrice", 0))
+            mark_price = float(p.get("markPrice", 0))
+            pnl = float(p.get("unRealizedProfit", 0))
+            
+            pnl_percentage = (pnl / (float(p.get("positionAmt", 0)) * entry_price)) * 100 * float(p.get("leverage", 1)) if entry_price > 0 and float(p.get("positionAmt", 0)) != 0 else 0
+
+            positions_list.append(Position(
+                symbol=p.get("symbol"),
+                side="LONG" if float(p.get("positionAmt", 0)) > 0 else "SHORT",
+                size=abs(float(p.get("positionAmt", 0))),
+                entryPrice=entry_price,
+                markPrice=mark_price,
+                pnl=pnl,
+                pnlPercentage=pnl_percentage
+            ))
+        return PositionsResponse(positions=positions_list)
+    except Exception as e:
+        logger.error(f"Error getting positions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not retrieve positions.")
+
+@app.get("/api/signals", response_model=List[Signal], tags=["Dashboard API"])
+async def get_signals():
+    """Zwraca listę ostatnich 10 sygnałów z historii."""
+    bot = get_bot()
+    if not bot:
+        return []
+
+    # Używamy historii sygnałów przechowywanej w pamięci bota
+    recent_signals = bot.signal_history[-10:] # Ostatnie 10
+    
+    signals_list = []
+    for s in reversed(recent_signals): # Najnowsze na górze
+        decision = s.get('decision', {})
+        status = "executed" if (decision.get('execution_result') or {}).get('status') == 'success' else decision.get('reason', 'rejected')
+
+        signals_list.append(Signal(
+            id=str(s.get('trace_id', s['received_at'])),
+            symbol=s.get('symbol'),
+            type=s.get('action').upper(),
+            price=s.get('price'),
+            timestamp=s.get('received_at'),
+            status=status
+        ))
+    return signals_list
+
+@app.post("/api/command", tags=["Dashboard API"])
+async def post_command(command_req: CommandRequest):
+    """Przyjmuje i wykonuje komendy dla bota."""
+    bot = get_bot()
+    if not bot:
+        raise HTTPException(status_code=503, detail="Bot is not running, cannot execute command.")
+
+    command = command_req.command
+    logger.info(f"Received command from API: {command}")
+
+    if command == "pause-bot":
+        await bot.pause()
+        return {"status": "success", "message": "Bot paused."}
+    elif command == "resume-bot":
+        await bot.resume()
+        return {"status": "success", "message": "Bot resumed."}
+    elif command == "restart-bot":
+        # Uwaga: Prawdziwy restart jest skomplikowany w Dockerze.
+        # Ta komenda na razie tylko zasygnalizuje potrzebę restartu.
+        logger.warning("API triggered a restart request. Manual restart is required.")
+        # W przyszłości można zaimplementować mechanizm, który zakończy proces bota,
+        # a Docker Compose go automatycznie podniesie.
+        # asyncio.create_task(bot.stop()) # To by zatrzymało bota
+        return {"status": "pending", "message": "Restart request logged. Manual restart required."}
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown command: {command}")

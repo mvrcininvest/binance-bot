@@ -249,7 +249,7 @@ class SignalIntelligence:
             logger.error(f"Error updating thresholds with ML: {e}")
 
     def _parse_alert_data_v91(self, alert_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse alert data with v9.1 enhancements"""
+        """Parse alert data with v9.1 enhancements (now resilient to None values)"""
         try:
             action = str(alert_data.get("action", "")).lower()
             is_emergency = (
@@ -257,20 +257,20 @@ class SignalIntelligence:
             )
 
             parsed = {
-                # Basic fields
+                # Basic fields with None-safety
                 "action": "buy" if "buy" in action else "sell",
                 "is_emergency_signal": is_emergency,
                 "symbol": alert_data.get("symbol", ""),
-                "price": float(alert_data.get("price", 0)),
-                "sl": float(alert_data.get("sl", 0)),
-                "tp1": float(alert_data.get("tp1", 0)),
-                "tp2": float(alert_data.get("tp2", 0)),
-                "tp3": float(alert_data.get("tp3", 0)),
-                "strength": float(alert_data.get("strength", 0)),
+                "price": float(alert_data.get("price") or 0.0),
+                "sl": float(alert_data.get("sl") or 0.0),
+                "tp1": float(alert_data.get("tp1") or 0.0),
+                "tp2": float(alert_data.get("tp2") or 0.0),
+                "tp3": float(alert_data.get("tp3") or 0.0),
+                "strength": float(alert_data.get("strength") or 0.0),
                 "tier": str(alert_data.get("tier", "Quick")),
-                "leverage": int(alert_data.get("leverage", 10)),
+                "leverage": int(alert_data.get("leverage") or 10),
                 "position_size_multiplier": float(
-                    alert_data.get("position_size_multiplier", 1.0)
+                    alert_data.get("position_size_multiplier") or 1.0
                 ),
                 # v9.1 CORE: Enhanced fields
                 "indicator_version": alert_data.get("indicator_version", "8.0"),
@@ -280,25 +280,25 @@ class SignalIntelligence:
                 # Market context
                 "market_regime": str(alert_data.get("market_regime", "NEUTRAL")),
                 "market_condition": str(alert_data.get("market_condition", "NORMAL")),
-                "confidence_penalty": float(alert_data.get("confidence_penalty", 0.0)),
+                "confidence_penalty": float(alert_data.get("confidence_penalty") or 0.0),
                 # Technical indicators
-                "mfi": float(alert_data.get("mfi", 50)),
-                "adx": float(alert_data.get("adx", 0)),
-                "rsi": float(alert_data.get("rsi", 50)),
+                "mfi": float(alert_data.get("mfi") or 50),
+                "adx": float(alert_data.get("adx") or 0),
+                "rsi": float(alert_data.get("rsi") or 50),
                 "htf_trend": str(alert_data.get("htf_trend", "neutral")),
-                "btc_correlation": float(alert_data.get("btc_correlation", 0)),
+                "btc_correlation": float(alert_data.get("btc_correlation") or 0),
                 # Volume and flow data
                 "volume_spike": str(alert_data.get("volume_spike", "false")).lower()
                 == "true",
-                "volume_ratio": float(alert_data.get("volume_ratio", 1.0)),
+                "volume_ratio": float(alert_data.get("volume_ratio") or 1.0),
                 "institutional_volume": float(
-                    alert_data.get("institutional_volume", 0)
+                    alert_data.get("institutional_volume") or 0
                 ),
-                "retail_volume": float(alert_data.get("retail_volume", 0)),
+                "retail_volume": float(alert_data.get("retail_volume") or 0),
                 # Key levels and structure
                 "near_key_level": str(alert_data.get("near_key_level", "false")).lower()
                 == "true",
-                "key_level_distance": float(alert_data.get("key_level_distance", 0)),
+                "key_level_distance": float(alert_data.get("key_level_distance") or 0),
                 "structure_break": str(
                     alert_data.get("structure_break", "false")
                 ).lower()
@@ -320,8 +320,8 @@ class SignalIntelligence:
             }
 
             # Validation
-            if not parsed["symbol"] or parsed["price"] <= 0 or parsed["sl"] <= 0:
-                raise ValueError("Missing critical data: symbol, price, or stop loss")
+            if not parsed["symbol"] or parsed["price"] <= 0:
+                raise ValueError("Missing critical data: symbol or price")
             return parsed
 
         except (ValueError, TypeError) as e:
@@ -793,21 +793,25 @@ class SignalIntelligence:
             return {"position_multiplier": 1.0, "leverage": 10, "tier": "Quick"}
 
     def _calculate_priority_multiplier(self, parsed_data: Dict[str, Any]) -> float:
-        """Calculate priority multiplier with v9.1 enhancements"""
+        """Calculate priority multiplier with v9.1 enhancements (Resilient)"""
         try:
             multiplier = 1.0
 
             # Priority enhancements from indicator
-            priority_enhancements = parsed_data.get("priority_enhancements", {})
-
-            if priority_enhancements.get("mitigation_mode_active"):
-                multiplier *= 1.15
-            if priority_enhancements.get("dynamic_opposite_zone_active"):
-                multiplier *= 1.12
-            if priority_enhancements.get("rising_adx_active"):
-                multiplier *= 1.10
-            if priority_enhancements.get("emergency_mode_active"):
-                multiplier *= 1.08
+            priority_enhancements = parsed_data.get("priority_enhancements")
+            
+            # --- POCZĄTEK POPRAWKI ---
+            # Sprawdzamy, czy priority_enhancements w ogóle istnieje i jest słownikiem
+            if isinstance(priority_enhancements, dict):
+                if priority_enhancements.get("mitigation_mode_active"):
+                    multiplier *= 1.15
+                if priority_enhancements.get("dynamic_opposite_zone_active"):
+                    multiplier *= 1.12
+                if priority_enhancements.get("rising_adx_active"):
+                    multiplier *= 1.10
+                if priority_enhancements.get("emergency_mode_active"):
+                    multiplier *= 1.08
+            # --- KONIEC POPRAWKI ---
 
             # v9.1 CORE: Enhanced priority factors
             if parsed_data.get("order_block_retest"):
@@ -819,12 +823,15 @@ class SignalIntelligence:
 
             # Emergency conditions bonus
             if parsed_data.get("is_emergency_signal"):
-                emergency_conditions = parsed_data.get("emergency_conditions", {})
-                volume_multiplier = emergency_conditions.get("volume_multiplier", 1.0)
-                if volume_multiplier > 5.0:
-                    multiplier *= 1.20
-                elif volume_multiplier > 3.0:
-                    multiplier *= 1.10
+                emergency_conditions = parsed_data.get("emergency_conditions")
+                # --- POCZĄTEK POPRAWKI ---
+                if isinstance(emergency_conditions, dict):
+                    volume_multiplier = emergency_conditions.get("volume_multiplier", 1.0)
+                    if volume_multiplier > 5.0:
+                        multiplier *= 1.20
+                    elif volume_multiplier > 3.0:
+                        multiplier *= 1.10
+                # --- KONIEC POPRAWKI ---
 
             return multiplier
 

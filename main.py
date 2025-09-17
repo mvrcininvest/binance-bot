@@ -32,6 +32,8 @@ from database import (
     cleanup_diagnostic_data,
     get_active_pattern_alerts,
     acknowledge_pattern_alert,
+    update_trade,
+    create_trade,
     ParameterDecision,
     ShapExplanation,
     ExecutionTrace,
@@ -42,6 +44,9 @@ from decision_engine import DecisionEngine
 from pine_health_monitor import PineScriptHealthMonitor as PineHealthMonitor
 from shap_explainer import SHAPExplainer as ShapExplainer
 from pattern_detector import PatternDetector
+from threading import Thread
+from webhook import app as webhook_app
+from binance_handler import binance_handler
 
 # Rate limiting dla IP
 request_counts = defaultdict(list)
@@ -149,6 +154,8 @@ class TradingBot:
 
         # Runtime settings
         self.runtime_risk = getattr(Config, "RISK_PER_TRADE", 0.02)
+        self.connection_check_needed = False
+        self.pending_trades = {}  # Przechowuj dane trade'ów w pamięci
         self.dry_run = getattr(Config, "DRY_RUN", True)
         self.blacklisted_symbols = set()
         self.last_signal = None
@@ -442,6 +449,9 @@ class TradingBot:
         try:
             with Session() as session:
                 for param_name, decision_data in decisions.items():
+                    if not isinstance(decision_data, dict):
+                        logger.warning(f"Skipping invalid parameter decision for {param_name}: not a dictionary.")
+                        continue
                     param_data = {
                         "trace_id": trace_id,
                         "parameter_name": param_name,
@@ -553,8 +563,10 @@ class TradingBot:
             signal_timestamp = datetime.utcnow()
             self.performance_metrics["total_signals"] += 1
             
-            # === STEP 1: CREATE DIAGNOSTIC TRACE ===
+            # === STEP 1: CREATE DIAGNOSTIC TRACE FOR ALL SIGNALS ===
             trace_id = await self._create_diagnostic_trace(signal_data)
+            tier = signal_data.get("tier", "Unknown")
+            logger.debug(f"🔍 Created diagnostic trace: {trace_id}")
             
             # v9.1 NEW: Handle close/emergency_close signals immediately
             action = signal_data.get("action", "").lower()
@@ -667,6 +679,7 @@ class TradingBot:
                             "age_seconds": age_seconds,
                             "trace_id": trace_id
                         }
+                
                 except Exception as e:
                     logger.warning(f"Could not parse alert timestamp: {e}")
 
@@ -819,19 +832,13 @@ class TradingBot:
                 if trace_id and optimized_params.get("parameter_decisions"):
                     await self._log_parameter_decisions(trace_id, optimized_params["parameter_decisions"])
 
-                # === STEP 8: EXECUTE TRADE ===
-                if trace_id:
-                    await self._update_diagnostic_trace(trace_id, "executing", {
-                        "position_size_pct": decision.get("risk_percent"),
-                        "position_size_usdt": decision.get("position_size_usdt"),
-                        "leverage_used": decision.get("leverage"),
-                        "stop_loss_pct": decision.get("sl_percent"),
-                        "ml_confidence": decision.get("ml_prediction", {}).get("confidence"),
-                        "risk_score": decision.get("risk_score", 0.5),
-                    })
-                
+                # === STEP 8: EXECUTE TRADE NATYCHMIAST ===
                 result = await self._execute_trade(signal_data, decision)
-                decision["execution_result"] = result
+
+                # Diagnostyka w tle TYLKO po udanym wykonaniu transakcji
+                if (result.get("status") == "success" and trace_id):
+                    # Uruchom diagnostyki w tle - nie blokuj głównego wątku
+                    asyncio.create_task(self._run_diagnostics_background(signal_data, decision, result, trace_id))
 
                 if result.get("status") == "success":
                     self.performance_metrics["signals_taken"] += 1
@@ -843,12 +850,19 @@ class TradingBot:
                     
                 # Complete diagnostic trace
                 if trace_id:
-                    await self._complete_diagnostic_trace(trace_id, {
-                        "final_decision": final_decision,
-                        "processing_time_ms": decision_time_ms,
-                        "decision_latency_ms": decision_time_ms,
-                        "trade_id": result.get("order", {}).get("orderId"),
-                    })
+                    trace_data = {
+                        "final_decision": "EXECUTED",
+                        "processing_stage": "completed",
+                        "execution_result": result,
+                    }
+                    trade_id = result.get("trade_id")
+                    if trade_id is not None:
+                        safe_trade_id = trade_id
+                        if trade_id > 2147483647 or trade_id < -2147483648:
+                            safe_trade_id = hash(str(trade_id)) % 2147483647
+                        trace_data["safe_trade_id"] = safe_trade_id
+    
+                    await self._complete_diagnostic_trace(trace_id, trace_data)
             else:
                 self.performance_metrics["signals_rejected"] += 1
                 
@@ -866,6 +880,23 @@ class TradingBot:
             await self.discord.send_signal_decision(signal_data, decision)
 
             return decision
+
+        except BinanceAPIException as e:
+            self.connection_check_needed = True  # Sprawdź połączenie przy następnym cyklu
+            logger.error(f"💥 Binance API error handling signal: {e}", exc_info=True)
+    
+            # Complete diagnostic trace with error
+            if trace_id:
+                try:
+                    await self._complete_diagnostic_trace(trace_id, {
+                        "final_decision": "ERROR",
+                        "rejection_reason": f"binance_api_error: {str(e)}"
+                    })
+                except:
+                    pass
+    
+            await self.discord.send_error_notification("Binance API Error", f"Error: {e}")
+            return {"status": "error", "error": str(e), "trace_id": trace_id}
 
         except Exception as e:
             logger.error(f"💥 Error handling signal: {e}", exc_info=True)
@@ -934,233 +965,346 @@ class TradingBot:
     async def _execute_trade(
         self, signal_data: Dict[str, Any], decision: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Execute trade with v9.1 enhancements"""
+        """Execute trade with v9.1 enhancements and corrected logic."""
+        symbol = signal_data.get("symbol", "").upper()
+        action = signal_data.get("action", "").lower()
+        tier = signal_data.get("tier", "Standard")
+
+        logger.info(f"🎯 Executing {action} trade for {symbol} (Tier: {tier})")
+
         try:
-            symbol = signal_data.get("symbol", "").upper()
-            action = signal_data.get("action", "").lower()
+            # Określ parametry handlu na podstawie tier
+            if tier == "Emergency":
+                logger.info("🚨 Signal is an Emergency tier. Applying emergency trade parameters.")
+                trade_params = self.mode_manager.get_mode_parameters("emergency")
+            else:
+                current_mode = self.mode_manager.get_current_mode()
+                if current_mode == "normal":
+                    current_mode = "balanced"
+                    logger.warning("Mode 'normal' requested, using 'balanced' instead")
+                logger.info(f"Signal is a standard tier. Applying '{current_mode}' trade parameters.")
+                trade_params = self.mode_manager.get_mode_parameters(current_mode)
 
-            logger.info(f"🎯 Executing {action} trade for {symbol}")
+            leverage = trade_params.get("leverage", Config.DEFAULT_LEVERAGE)
+            risk_percent = trade_params.get("risk_percent", self.runtime_risk)
 
-            # Check if we already have a position
-            single_position = getattr(Config, "SINGLE_POSITION_PER_SYMBOL", True)
-            if symbol in self.active_positions and single_position:
-                logger.warning(f"📍 Already have position for {symbol}, skipping")
-                return {"status": "skipped", "reason": "position_exists"}
+            # Pobierz cenę i oblicz SL/TP
+            current_price = await binance_handler.get_current_price(symbol)
+            sl_price = self._calculate_stop_loss(current_price, action, signal_data)
+            tp_levels = self._calculate_take_profits(current_price, action, signal_data, sl_price)
 
-            # Check max concurrent positions
-            max_concurrent = getattr(Config, "MAX_CONCURRENT_SLOTS", 5)
-            if len(self.active_positions) >= max_concurrent:
-                logger.warning(f"📊 Max positions reached ({max_concurrent}), skipping")
-                return {"status": "skipped", "reason": "max_positions"}
+            if not sl_price or not tp_levels:
+                raise ValueError("Failed to determine valid SL or TP levels.")
 
-            # v9.1 CORE: Enhanced leverage handling
-            leverage = decision.get("leverage", getattr(Config, "DEFAULT_LEVERAGE", 10))
-            risk_percent = decision.get("risk_percent", self.runtime_risk)
+            logger.info(f"Determined trade parameters: SL={sl_price}, TPs={tp_levels}")
 
-            # v9.1 CORE: Precise leverage setting before order
+            # Ustaw leverage
             await binance_handler.set_leverage(symbol, leverage)
             logger.info(f"⚙️ Set leverage to {leverage}x for {symbol}")
 
-            # Calculate position size with v9.1 enhancements
+            # Oblicz wielkość pozycji
             account_balance = await binance_handler.get_futures_balance()
             risk_amount = account_balance * risk_percent
-
-            # Get current price
-            current_price = await binance_handler.get_current_price(symbol)
-
-            # Calculate stop loss and take profit levels
-            sl_price = self._calculate_stop_loss(current_price, action, signal_data)
-            tp_levels = self._calculate_take_profits(current_price, action, signal_data)
-            decision["tp_levels"] = tp_levels
-
-            # Calculate position size based on risk with tier adjustment
-            tier = signal_data.get("tier", "Standard")
             position_size = self._calculate_position_size(
                 risk_amount, current_price, sl_price, leverage, tier
             )
 
-            # v9.1 CORE: Generate unique order tag
-            order_tag_prefix = getattr(Config, "ORDER_TAG_PREFIX", "TBV91")
-            order_tag = f"{order_tag_prefix}_{int(time.time())}"
+            # Generuj unikalny tag dla zlecenia
+            order_tag = f"{getattr(Config, 'ORDER_TAG_PREFIX', 'TBV91')}_{int(time.time())}"
 
-            # Place order with enhanced parameters
+            # Przygotuj dane trade'u w pamięci
+            trade_data = self._prepare_trade_data(signal_data, decision, {
+                "price": current_price, 
+                "origQty": position_size, 
+                "clientOrderId": order_tag
+            }, sl_price, tp_levels)
+
+            if not trade_data:
+                raise ValueError("Failed to prepare trade data")
+
+            # Zapisz w pamięci do późniejszego użycia
+            self.pending_trades = getattr(self, 'pending_trades', {})
+            self.pending_trades[symbol] = trade_data
+
+            # Generuj unikalny trade_id
+            trade_id = f"TEMP_{symbol}_{int(time.time())}"
+            # === DODAJ ERROR HANDLING ===
+            from binance.exceptions import BinanceAPIException
+            # Wykonaj zlecenie
             if self.dry_run:
                 logger.info(f"🧪 DRY RUN: Would place {action} order for {symbol}")
                 order_result = {
-                    "orderId": f"DRY_{int(time.time())}",
-                    "symbol": symbol,
+                    "orderId": f"DRY_{trade_id if trade_id else 'UNKNOWN'}", 
+                    "symbol": symbol, 
                     "side": action.upper(),
-                    "price": current_price,
-                    "origQty": position_size,
+                    "price": current_price, 
+                    "origQty": position_size, 
                     "status": "FILLED",
                     "clientOrderId": order_tag,
                 }
             else:
-                order_result = await binance_handler.place_futures_order(
-                    symbol=symbol,
-                    side=action.upper(),
-                    quantity=position_size,
-                    leverage=leverage,
-                    client_order_id=order_tag,
-                )
+                try:
+                    order_result = await binance_handler.place_futures_order(
+                        symbol=symbol, 
+                        side=action.upper(), 
+                        quantity=position_size,
+                        leverage=leverage, 
+                        client_order_id=order_tag,
+                    )
+                except BinanceAPIException as e:
+                    logger.error(f"💥 Binance API error placing order: {e}")
+                    # Usuń z pending_trades jeśli zlecenie się nie powiodło
+                    self.pending_trades.pop(symbol, None)
+                    raise e
+                except Exception as e:
+                    logger.error(f"💥 Unexpected error placing order: {e}")
+                    # Usuń z pending_trades jeśli zlecenie się nie powiodło
+                    self.pending_trades.pop(symbol, None)
+                    raise e
 
-            # Store position with v9.1 enhancements
+            # Zapisz pozycję
             self.active_positions[symbol] = {
-                "order_id": order_result["orderId"],
-                "order_tag": order_tag,
+                "trade_id": trade_id, 
+                "order_tag": order_tag, 
                 "entry_price": current_price,
-                "quantity": position_size,
-                "side": action,
+                "quantity": position_size, 
+                "side": action, 
                 "sl_price": sl_price,
-                "tp_levels": tp_levels,
-                "entry_time": datetime.utcnow(),
+                "tp_levels": tp_levels, 
+                "entry_time": datetime.utcnow(), 
                 "leverage": leverage,
-                "tier": signal_data.get("tier", "Standard"),
+                "tier": tier, 
                 "signal_strength": signal_data.get("strength", 0.5),
-                "institutional_flow": signal_data.get("institutional_flow", 0.0),
-                "fake_breakout_detected": decision.get("fake_breakout_detected", False),
-                "regime": signal_data.get("enhanced_regime", "NEUTRAL"),
-                "mtf_agreement": signal_data.get("mtf_agreement_ratio", 0.5),
             }
 
-            # Save to database with v9.1 fields
-            self._save_trade_to_db(signal_data, decision, order_result)
-
-            # Update daily counters
             self.daily_trades += 1
-
-            # Send enhanced entry notification
             await self.discord.send_entry_notification(order_result, signal_data)
-
             logger.info(f"✅ Trade executed successfully for {symbol}")
 
-            return {
-                "status": "success",
-                "order": order_result,
-                "position": self.active_positions[symbol],
+            return { 
+                "status": "success", 
+                "order": order_result, 
+                "position": self.active_positions[symbol], 
+                "trade_id": trade_id 
             }
 
         except Exception as e:
             logger.error(f"💥 Error executing trade: {e}", exc_info=True)
-            await self.discord.send_error_notification(f"Trade execution error: {e}")
-            return {"status": "error", "error": str(e)}
+        
+            # Wyczyść pending trade jeśli wystąpił błąd
+            if symbol in getattr(self, 'pending_trades', {}):
+                del self.pending_trades[symbol]
+                logger.info(f"🧹 Cleaned up pending trade data for {symbol}")
 
-    def _calculate_stop_loss(
-        self, price: float, action: str, signal_data: Dict
-    ) -> float:
-        """Calculate stop loss price with v9.1 enhancements"""
-        # Use signal SL if provided, otherwise default
-        if "sl" in signal_data:
-            return float(signal_data["sl"])
+            await self.discord.send_error_notification(
+                f"Trade execution error for {symbol}", 
+                f"Reason: {e}"
+            )
+            return {
+                "status": "error", 
+                "error": str(e), 
+                "trade_id": trade_id if 'trade_id' in locals() else None
+            }
 
-        sl_percent = signal_data.get("sl_percent", 2.0) / 100
+    def _calculate_stop_loss(self, price: float, action: str, signal_data: Dict) -> float:
+        """Oblicza cenę SL, dając priorytet wartości z alertu."""
+        # Priorytet 1: Użyj SL z sygnału, jeśli jest poprawny
+        if signal_data.get("sl") and isinstance(signal_data["sl"], (int, float)) and signal_data["sl"] > 0:
+            sl_price = float(signal_data["sl"])
+            # Prosta walidacja logiki
+            if (action == "buy" and sl_price < price) or (action == "sell" and sl_price > price):
+                logger.info(f"Using SL from alert: {sl_price}")
+                return sl_price
+            else:
+                logger.warning(f"Invalid SL from alert for {action} action (price: {price}, sl: {sl_price}). Falling back to calculation.")
 
-        if action.lower() == "buy":
-            return price * (1 - sl_percent)
+        # Fallback: Oblicz SL na podstawie ATR i konfiguracji
+        logger.info("SL not in alert or invalid. Calculating fallback SL...")
+        atr_value = float(signal_data.get("atr", 0))
+        if atr_value <= 0:
+            raise ValueError("ATR value is missing or invalid, cannot calculate fallback SL.")
+
+        atr_multiplier = getattr(Config, "ATR_SL_MULTIPLIER", 1.0) # Pobierz mnożnik z config.py
+        sl_distance = atr_value * atr_multiplier
+
+        if action == "buy":
+            return price - sl_distance
         else:
-            return price * (1 + sl_percent)
+            return price + sl_distance
 
-    def _calculate_take_profits(
-        self, price: float, action: str, signal_data: Dict
-    ) -> List[float]:
-        """Calculate take profit levels with v9.1 multi-TP support"""
+    def _calculate_take_profits(self, price: float, action: str, signal_data: Dict, sl_price: float) -> List[float]:
+        """Oblicza ceny TP, dając priorytet wartościom z alertu."""
         tp_levels = []
 
-        # Use signal TPs if provided
-        for i in range(1, 4):  # tp1, tp2, tp3
+        # Priorytet 1: Spróbuj użyć TP z sygnału
+        for i in range(1, 4):
             tp_key = f"tp{i}"
-            if tp_key in signal_data:
-                tp_levels.append(float(signal_data[tp_key]))
+            if signal_data.get(tp_key) and isinstance(signal_data[tp_key], (int, float)) and signal_data[tp_key] > 0:
+                tp_price = float(signal_data[tp_key])
+                # Prosta walidacja logiki
+                if (action == "buy" and tp_price > price) or (action == "sell" and tp_price < price):
+                    tp_levels.append(tp_price)
+        
+        if tp_levels:
+            logger.info(f"Using {len(tp_levels)} TP level(s) from alert: {tp_levels}")
+            return tp_levels
 
-        # If no TPs provided, calculate based on RR
-        if not tp_levels:
-            use_alert_levels = getattr(Config, "USE_ALERT_LEVELS", False)
-            tp_rr_levels = (
-                getattr(Config, "TP_RR_LEVELS", [1.5, 3.0, 5.0])
-                if use_alert_levels
-                else [1.5, 3.0, 5.0]
-            )
+        # Fallback: Oblicz TP na podstawie RR i konfiguracji
+        logger.info("TP levels not in alert or invalid. Calculating fallback TPs...")
+        risk_per_unit = abs(price - sl_price)
+        if risk_per_unit <= 0:
+            raise ValueError("Risk per unit is zero, cannot calculate fallback TPs.")
+            
+        # Używamy teraz TP_RR_LEVELS z config.py, który powinien być listą, np. [0.5, 1.0, 1.5]
+        tp_rr_levels = getattr(Config, "TP_RR_LEVELS", [0.5, 1.0, 1.5])
 
-            for rr in tp_rr_levels:
-                if action.lower() == "buy":
-                    tp_price = price * (1 + (rr * 0.02))  # 2% per RR
-                else:
-                    tp_price = price * (1 - (rr * 0.02))
-                tp_levels.append(tp_price)
-
+        for rr in tp_rr_levels:
+            if action == "buy":
+                tp_levels.append(price + (risk_per_unit * rr))
+            else:
+                tp_levels.append(price - (risk_per_unit * rr))
+        
+        logger.info(f"Calculated fallback TPs based on RR: {tp_levels}")
         return tp_levels
 
     def _calculate_position_size(
         self, risk_amount: float, entry_price: float, sl_price: float, leverage: int, tier: str = "Standard"
     ) -> float:
-        """Calculate position size with v9.1 enhancements"""
+        """Calculate position size for scalping with dual risk management"""
+    
+        # Pobierz balans
+        balance = binance_handler.get_balance()["available"]
+    
+        # PARAMETRY KONFIGURACYJNE (dodaj do .env)
+        max_position_percent = float(os.getenv('MAX_POSITION_PERCENT', '15'))  # % kapitału na pozycję
+        risk_percent = float(os.getenv('RISK_PER_TRADE_PERCENT', '2.0'))  # % maksymalnej straty
+    
+        # Oblicz maksymalną wartość pozycji (z leverage)
+        max_position_value = balance * (max_position_percent / 100) * leverage
+    
+        # Oblicz wielkość pozycji na podstawie ryzyka
         price_diff = abs(entry_price - sl_price)
-        risk_per_unit = price_diff / entry_price
-        position_value = risk_amount / risk_per_unit
-        position_size = position_value / entry_price
-
-        # Apply position size multiplier
+        risk_based_size = risk_amount / price_diff
+        risk_based_value = risk_based_size * entry_price
+    
+        # Wybierz MNIEJSZĄ wartość (bezpieczeństwo)
+        if risk_based_value > max_position_value:
+            position_value = max_position_value
+            position_size = position_value / entry_price
+            logger.info(f"📉 Position limited by max size ({max_position_percent}% of balance)")
+        else:
+            position_value = risk_based_value
+            position_size = risk_based_size
+            logger.info(f"✅ Position sized by risk ({risk_percent}% max loss)")
+    
+        # Sprawdź czy mamy wystarczający margin
+        required_margin = position_value / leverage
+    
+        logger.info(f"""
+        📊 Position Calculation:
+        ├── Balance: ${balance:.2f}
+        ├── Max position ({max_position_percent}%): ${max_position_value:.2f}
+        ├── Risk-based size: ${risk_based_value:.2f}
+        ├── Selected: ${position_value:.2f}
+        ├── Position size: {position_size:.3f} units
+        ├── Required margin: ${required_margin:.2f}
+        └── Leverage: {leverage}x
+        """)
+    
+        # Ostateczne sprawdzenie
+        if required_margin > balance * 0.95:
+            logger.error(f"❌ Insufficient margin! Need ${required_margin:.2f}, have ${balance:.2f}")
+            return 0
+    
+        # Apply multipliers
         multiplier = getattr(Config, "POSITION_SIZE_MULTIPLIER", 1.0)
         position_size *= multiplier
-        # v9.1: Apply tier-based adjustments
+    
+        # Tier adjustments
         tier_risk_mult = getattr(Config, "TIER_RISK_MULTIPLIERS", {}).get(tier, 1.0)
         if tier_risk_mult != 1.0:
             position_size *= tier_risk_mult
-            logger.info(f"📊 Tier {tier} risk adjustment: {tier_risk_mult}x")
-
+            logger.info(f"📊 Tier {tier} adjustment: {tier_risk_mult}x")
+    
         return round(position_size, 3)
 
-    def _save_trade_to_db(self, signal_data: Dict, decision: Dict, order_result: Dict):
-        """Save trade to database (Trade model) – spójne z database.Trade"""
+    def _prepare_trade_data(self, signal_data: Dict, decision: Dict, order_result: Dict, sl_price: float, tp_levels: List[float]):
+        """Przygotuj dane trade'u w pamięci - nie zapisuj jeszcze do bazy"""
+        try:
+            price = float(order_result.get("price") or 0)
+        
+            if price <= 0:
+                logger.error(f"Invalid entry_price: {price}")
+                return None
+            
+            side = "BUY" if signal_data.get("action", "").lower() in ("buy", "long") else "SELL"
+            qty = float(order_result.get("origQty") or 0)
+            safe_tp_levels = tp_levels or []
+
+            # Zwróć dane bez zapisywania do bazy
+            return {
+                "symbol": signal_data.get("symbol"),
+                "side": side,
+                "status": "open",
+                "idempotency_key": signal_data.get("idempotency_key"),
+                "client_tags": {"order_tag": order_result.get("clientOrderId")},
+                "entry_price": price,
+                "entry_time": datetime.utcnow(),
+                "entry_quantity": qty,
+                "position_size_usdt": price * qty if price and qty else None,
+                "stop_loss": sl_price,
+                "take_profit_1": safe_tp_levels[0] if len(safe_tp_levels) > 0 else None,
+                "take_profit_2": safe_tp_levels[1] if len(safe_tp_levels) > 1 else None,
+                "take_profit_3": safe_tp_levels[2] if len(safe_tp_levels) > 2 else None,
+                "leverage_used": decision.get("leverage", 1),
+                "leverage_hint": signal_data.get("leverage"),
+                "signal_tier": signal_data.get("tier"),
+                "signal_strength": signal_data.get("strength"),
+                "signal_timeframe": signal_data.get("timeframe"),
+                "signal_session": signal_data.get("session"),
+                "indicator_version": signal_data.get("indicator_version"),
+                "institutional_flow": signal_data.get("institutional_flow"),
+                "retest_confidence": signal_data.get("retest_confidence"),
+                "fake_breakout_detected": decision.get("fake_breakout_detected", False),
+                "fake_breakout_penalty": signal_data.get("fake_breakout_penalty"),
+                "enhanced_regime": signal_data.get("enhanced_regime"),
+                "regime_confidence": signal_data.get("regime_confidence"),
+                "mtf_agreement_ratio": signal_data.get("mtf_agreement_ratio"),
+                "volume_context": {
+                    "volume_spike": signal_data.get("volume_spike"),
+                    "volume_ratio": signal_data.get("volume_ratio"),
+                    "institutional_volume": signal_data.get("institutional_volume"),
+                    "retail_volume": signal_data.get("retail_volume"),
+                },
+                "mode_used": getattr(self.mode_manager, "current_mode", None),
+                "alert_data": signal_data,
+            }
+        except Exception as e:
+            logger.error(f"💥 Error preparing trade data: {e}", exc_info=True)
+            return None
+
+    def _save_complete_trade_to_db(self, trade_data: Dict, exit_data: Dict = None):
+        """Zapisz kompletny trade do bazy (z danymi wyjścia jeśli są)"""
         try:
             with Session() as session:
-                side = "BUY" if signal_data.get("action", "").lower() in ("buy", "long") else "SELL"
-                price = float(order_result.get("price") or 0)
-                qty = float(order_result.get("origQty") or 0)
-                tp_levels = decision.get("tp_levels") or []
-
-                trade = Trade(
-                    symbol=signal_data.get("symbol"),
-                    side=side,
-                    status="open",
-                    idempotency_key=signal_data.get("idempotency_key"),
-                    client_tags={"order_tag": order_result.get("clientOrderId")},
-                    entry_price=price,
-                    entry_time=datetime.utcnow(),
-                    entry_quantity=qty,
-                    position_size_usdt=price * qty if price and qty else None,
-                    stop_loss=decision.get("sl_price"),
-                    take_profit_1=tp_levels[0] if len(tp_levels) > 0 else None,
-                    take_profit_2=tp_levels[1] if len(tp_levels) > 1 else None,
-                    take_profit_3=tp_levels[2] if len(tp_levels) > 2 else None,
-                    leverage_used=decision.get("leverage", 1),
-                    leverage_hint=signal_data.get("leverage"),
-                    signal_tier=signal_data.get("tier"),
-                    signal_strength=signal_data.get("strength"),
-                    signal_timeframe=signal_data.get("timeframe"),
-                    signal_session=signal_data.get("session"),
-                    indicator_version=signal_data.get("indicator_version"),
-                    institutional_flow=signal_data.get("institutional_flow"),
-                    retest_confidence=signal_data.get("retest_confidence"),
-                    fake_breakout_detected=decision.get("fake_breakout_detected", False),
-                    fake_breakout_penalty=signal_data.get("fake_breakout_penalty"),
-                    enhanced_regime=signal_data.get("enhanced_regime"),
-                    regime_confidence=signal_data.get("regime_confidence"),
-                    mtf_agreement_ratio=signal_data.get("mtf_agreement_ratio"),
-                    volume_context={
-                        "volume_spike": signal_data.get("volume_spike"),
-                        "volume_ratio": signal_data.get("volume_ratio"),
-                        "institutional_volume": signal_data.get("institutional_volume"),
-                        "retail_volume": signal_data.get("retail_volume"),
-                    },
-                    mode_used=getattr(self.mode_manager, "current_mode", None),
-                    alert_data=signal_data,
-                )
+                if exit_data:
+                    # Kompletny trade z wyjściem
+                    trade_data.update({
+                        "status": "closed",
+                        "exit_price": exit_data.get("exit_price"),
+                        "exit_time": exit_data.get("exit_time"),
+                        "exit_quantity": exit_data.get("exit_quantity"),
+                        "exit_reason": exit_data.get("exit_reason"),
+                    })
+            
+                trade = Trade(**trade_data)
                 session.add(trade)
                 session.commit()
-                logger.info(f"💾 Trade saved to DB: id={trade.id} {trade.symbol} {trade.side}")
+                logger.info(f"💾 Complete trade saved to DB: id={trade.id} {trade.symbol} {trade.side}")
+                return trade
         except Exception as e:
-            logger.error(f"💥 Error saving trade to DB: {e}", exc_info=True)
+            logger.error(f"💥 Error saving complete trade: {e}", exc_info=True)
+            return None
 
     async def close_position(
         self, symbol: str, reason: str = "manual"
@@ -1206,30 +1350,34 @@ class TradingBot:
             return {"status": "error", "error": str(e)}
 
     def close_trade_in_db(self, symbol: str, close_result: Dict):
-        """Close the latest open Trade for given symbol"""
+        """Zapisz kompletny trade po zamknięciu pozycji"""
         try:
-            with Session() as session:
-                trade = (
-                    session.query(Trade)
-                    .filter(Trade.symbol == symbol, Trade.status == "open")
-                    .order_by(Trade.entry_time.desc())
-                    .first()
-                )
-                if not trade:
-                    logger.warning(f"No open trade found in DB for {symbol}")
-                    return
-
-                exit_data = {
-                    "exit_price": float(close_result.get("price") or 0),
-                    "exit_time": datetime.utcnow(),
-                    "exit_quantity": trade.entry_quantity,
-                    "exit_reason": close_result.get("reason", "manual"),
-                    "exit_commission": 0.0,
-                }
-                close_trade(session, trade.id, exit_data)
-                logger.info(f"💾 Trade {trade.id} closed in DB")
+            # Pobierz dane z pamięci
+            if not hasattr(self, 'pending_trades') or symbol not in self.pending_trades:
+                logger.warning(f"No pending trade data found for {symbol}")
+                return
+            
+            trade_data = self.pending_trades[symbol]
+        
+            # Dodaj dane wyjścia
+            exit_data = {
+                "exit_price": float(close_result.get("price") or 0),
+                "exit_time": datetime.utcnow(),
+                "exit_quantity": trade_data.get("entry_quantity"),
+                "exit_reason": close_result.get("reason", "manual"),
+            }
+        
+            # Zapisz kompletny trade
+            trade = self._save_complete_trade_to_db(trade_data, exit_data)
+        
+            # Usuń z pamięci
+            del self.pending_trades[symbol]
+        
+            if trade:
+                logger.info(f"💾 Complete trade {trade.id} saved to DB after close")
+        
         except Exception as e:
-            logger.error(f"💥 Error closing trade in DB: {e}", exc_info=True)
+            logger.error(f"💥 Error saving complete trade: {e}", exc_info=True)
 
     def get_status(self) -> Dict[str, Any]:
         """Get enhanced bot status with v9.1 metrics"""
@@ -1401,8 +1549,6 @@ class TradingBot:
     async def _run_webhook_server(self):
         """Run webhook server"""
         try:
-            # Pass bot instance to webhook app
-            webhook_app.state.bot = self
             # ===== DODAJ FILTR LOGÓW =====
             # Filtr dla health/metrics spam
             class HealthMetricsFilter(logging.Filter):
@@ -1435,14 +1581,14 @@ class TradingBot:
         """Enhanced health check loop"""
         while self.running:
             try:
-                await asyncio.sleep(self.health_check_interval)
+                await asyncio.sleep(300)  # 5 minut zamiast 30s
 
-                # Check Binance connection
-                if not await binance_handler.check_connection():
-                    logger.error("❌ Binance connection lost")
-                    await self.discord.send_error_notification(
-                        "Binance connection lost"
-                    )
+                # Sprawdzaj połączenie tylko gdy potrzeba
+                if self.connection_check_needed:
+                    if not await binance_handler.check_connection():
+                        logger.error("❌ Binance connection lost")
+                        await self.discord.send_error_notification("Binance connection lost")
+                    self.connection_check_needed = False
 
                 # Check database connection
                 try:
@@ -1503,7 +1649,7 @@ class TradingBot:
         """Monitor for emergency conditions"""
         while self.running:
             try:
-                await asyncio.sleep(60)  # Check every minute
+                await asyncio.sleep(1800)  # Check every 30 minutes
 
                 # Check daily loss threshold
                 emergency_threshold = getattr(Config, "EMERGENCY_CLOSE_THRESHOLD", -100)
@@ -1609,13 +1755,17 @@ class TradingBot:
                 break
             except Exception as e:
                 logger.error(f"💥 Performance report error: {e}", exc_info=True)
+
     async def _diagnostic_loop(self):
         """Diagnostic and pattern detection loop"""
         while self.running:
             try:
-                await asyncio.sleep(300)  # Every 5 minutes
+                await asyncio.sleep(1800)  # Every 30 minutes
                 
                 if not self.diagnostic_enabled:
+                    continue
+                # Uruchom pełną diagnostykę tylko co godzinę
+                if datetime.utcnow().minute not in [0, 30]:  # Tylko o pełnych i półgodzinach
                     continue
                 
                 # Pattern detection and proactive alerts
@@ -1623,24 +1773,26 @@ class TradingBot:
                 
                 # System health logging
                 try:
+                    # --- POCZĄTEK POPRAWKI ---
+                    health_report = await self.diagnostic_manager.run_full_diagnostics()
+                    # Reaguj na krytyczne problemy
+                    await self._handle_critical_diagnostics(health_report)
+
                     health_data = {
-                        "overall_health": 0.8,  # Calculate based on various metrics
-                        "pine_script_health": 0.9,
-                        "ml_model_health": 0.8 if self.ml_predictor else None,
-                        "binance_api_health": 0.9,
-                        "database_health": 0.9,
-                        "discord_health": 0.9,
-                        "avg_processing_time_ms": 150,  # Calculate from recent traces
-                        "signals_received": self.performance_metrics["total_signals"],
-                        "signals_accepted": self.performance_metrics["signals_taken"],
-                        "trades_opened": self.daily_trades,
-                        "active_warnings": [],
-                        "critical_issues": [],
+                        "timestamp": datetime.utcnow(),
+                        "overall_status": health_report.get("overall_health", {}).get("status", "UNKNOWN"),
+                        "health_score": health_report.get("overall_health", {}).get("score", 0.0),
+                        "component_results": health_report.get("component_results", []),
+                        "system_metrics": health_report.get("system_metrics", {}),
+                        "trading_metrics": health_report.get("trading_metrics", {}),
+                        "recommendations": health_report.get("recommendations", []),
+                        "execution_time_ms": health_report.get("execution_summary", {}).get("execution_time_ms", 0)
                     }
-                    
+                    # --- KONIEC POPRAWKI ---
+
                     with Session() as session:
                         log_system_health(session, health_data)
-                        
+
                 except Exception as e:
                     logger.error(f"Error logging system health: {e}")
                 
@@ -1700,11 +1852,16 @@ async def main():
 
         # Create bot instance
         bot_instance = TradingBot()
+        webhook_app.state.bot = bot_instance
+        
         # Initialize diagnostics engine with bot instance
-        global diagnostics_engine
         from diagnostics import DiagnosticsEngine
         diagnostics_engine = DiagnosticsEngine(bot_instance)
         bot_instance.diagnostics_engine = diagnostics_engine
+        
+        # Set global diagnostics_engine for convenience functions
+        import diagnostics
+        diagnostics.diagnostics_engine = diagnostics_engine
 
         # Setup signal handlers
         def signal_handler(sig, frame):
@@ -1728,6 +1885,66 @@ async def main():
             except:
                 pass
         sys.exit(1)
+
+async def _run_diagnostics_background(self, signal_data: Dict, decision: Dict, result: Dict):
+    """Uruchom diagnostykę w tle po wykonaniu trade'u"""
+    try:
+        trace_id = await self._create_diagnostic_trace(signal_data)
+        await self._log_pine_health_data(trace_id, signal_data)
+        
+        if decision.get("parameter_decisions"):
+            await self._log_parameter_decisions(trace_id, decision["parameter_decisions"])
+            
+        await self._complete_diagnostic_trace(trace_id, {
+            "final_decision": "EXECUTED",
+            "processing_stage": "completed_background",
+            "execution_result": result
+        })
+        
+        logger.info(f"🔍 Background diagnostics completed for trace: {trace_id}")
+        
+    except Exception as e:
+        logger.error(f"Background diagnostics error: {e}")
+
+async def _handle_critical_diagnostics(self, health_report: dict):
+        """Reaguj na krytyczne problemy diagnostyczne"""
+        try:
+            overall_status = health_report.get("overall_health", {}).get("status", "UNKNOWN")
+          
+            if overall_status == "CRITICAL":
+                critical_components = []
+                for component in health_report.get("component_results", []):
+                    if component.get("status") == "critical":
+                        critical_components.append(component.get("component"))
+              
+                logger.error(f"🚨 CRITICAL system status detected: {critical_components}")
+              
+                # Automatyczne działania naprawcze
+                if "database" in critical_components:
+                    logger.warning("🔄 Attempting database reconnection...")
+                    # Dodaj logikę reconnect do bazy
+                  
+                if "binance_api" in critical_components:
+                    logger.warning("🔄 Marking connection check needed...")
+                    self.connection_check_needed = True
+                  
+                if "bot_core" in critical_components:
+                    logger.warning("🔄 Enabling emergency mode...")
+                    self.enable_emergency_mode()
+              
+                # Wyślij alert na Discord
+                await self.discord.send_error_notification(
+                    "🚨 CRITICAL System Status",
+                    f"Critical issues detected in: {', '.join(critical_components)}"
+                )
+              
+                # Jeśli więcej niż 2 komponenty krytyczne - zatrzymaj trading
+                if len(critical_components) >= 2:
+                    logger.error("🚨 Multiple critical components - pausing trading")
+                    self.pause_trading()
+                  
+        except Exception as e:
+            logger.error(f"Error handling critical diagnostics: {e}")
 
 
 if __name__ == "__main__":

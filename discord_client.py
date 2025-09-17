@@ -644,57 +644,59 @@ class CommandCog(commands.Cog):
     ):
         await self._log_action(interaction, "/diagnostics", f"component={component}, hours={hours}")
         await interaction.response.defer(ephemeral=True)
-    
+
         try:
-            # Pobierz raport diagnostyczny
-            diagnostics_system = DiagnosticsEngine(bot=self.main_bot)
-            report = await diagnostics_system.generate_comprehensive_report()
-        
-            # Utwórz embed z raportem
+            # --- POCZĄTEK POPRAWKI ---
+            # Używamy instancji diagnostic_manager z głównego bota, a nie tworzymy nowej
+            if not hasattr(self.main_bot, 'diagnostic_manager'):
+                await self._reply(interaction, "❌ Silnik diagnostyczny nie jest dostępny.")
+                return
+
+            report = await self.main_bot.diagnostic_manager.run_full_diagnostics()
+            # --- KONIEC POPRAWKI ---
+
             embed = discord.Embed(
                 title="🔍 Raport Diagnostyczny Systemu",
                 color=discord.Color.blue(),
                 timestamp=datetime.now()
             )
-        
-            # Status ogólny
-            health_color = "🟢" if report.get('overall_status') == 'HEALTHY' else "🔴"
+
+            health_report = report.get('overall_health', {})
+            health_status = health_report.get('status', 'UNKNOWN')
+            health_color = "🟢" if health_status == 'healthy' else "🔴" if health_status == 'critical' else "🟡"
             embed.add_field(
                 name="Status Systemu",
-                value=f"{health_color} {report.get('overall_status', 'UNKNOWN')}",
+                value=f"{health_color} {health_status.upper()}",
                 inline=True
             )
 
-            # Metryki wydajności
-            perf = report.get('performance_metrics', {})
+            perf = report.get('execution_summary', {})
             if perf:
                 embed.add_field(
                     name="Wydajność",
-                    value=f"Avg Response: {perf.get('avg_response_time', 0):.2f}ms\nUptime: {perf.get('uptime_percentage', 0):.1f}%",
+                    value=f"Checks: {perf.get('total_checks', 0)}\nCzas: {perf.get('execution_time_ms', 0)}ms",
                     inline=True
                 )
 
-            # Błędy i ostrzeżenia
-            critical_issues = report.get('critical_issues', [])
-            warnings = report.get('warnings', [])
+            critical_issues = health_report.get('critical_issues', 0)
+            warnings = health_report.get('warnings', 0)
             embed.add_field(
                 name="Problemy",
-                value=f"Krytyczne: {len(critical_issues)}\nOstrzeżenia: {len(warnings)}",
+                value=f"Krytyczne: {critical_issues}\nOstrzeżenia: {warnings}",
                 inline=True
             )
-        
-            # Rekomendacje
-            recommendations = report.get('recommendations', [])[:5]  # Pierwsze 5
+
+            recommendations = report.get('recommendations', [])[:5]
             if recommendations:
                 rec_text = "\n".join([f"• {rec}" for rec in recommendations])
                 embed.add_field(
                     name="Rekomendacje",
-                    value=rec_text[:1024],  # Discord limit
+                    value=rec_text[:1024],
                     inline=False
                 )
 
             await self._reply(interaction, embed=embed)
-        
+
         except Exception as e:
             logger.error(f"/diagnostics error: {e}", exc_info=True)
             await self._reply(interaction, "❌ Błąd przy generowaniu raportu diagnostycznego.")
@@ -707,51 +709,39 @@ class CommandCog(commands.Cog):
     async def patterns_cmd(self, interaction: discord.Interaction, hours: int = 24):
         await self._log_action(interaction, "/patterns", f"hours={hours}")
         await interaction.response.defer(ephemeral=True)
-    
+
         try:
-            # Pobierz raport wzorców
             report = await pattern_detector.generate_pattern_report(hours)
-        
+
             embed = discord.Embed(
                 title="🔍 Analiza Wzorców i Anomalii",
                 color=discord.Color.purple(),
                 timestamp=datetime.now()
             )
-        
-            # Statystyki wzorców
+
             embed.add_field(
                 name="Wzorce",
-                value=f"Wykryte: {report.total_patterns}\nKrytyczne: {report.critical_patterns}\nWysoka istotność: {report.high_severity_patterns}",
+                value=f"Wykryte: {report.total_patterns}\nKrytyczne: {report.critical_patterns}",
                 inline=True
             )
-        
-            # Statystyki anomalii
+
             embed.add_field(
                 name="Anomalie",
-                value=f"Wykryte: {report.anomalies_detected}\nŚrednie odchylenie: {report.avg_anomaly_deviation:.1f}%",
+                value=f"Wykryte: {report.anomalies_detected}",
                 inline=True
             )
-        
-            # Ocena ryzyka
-            risk_color = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🟠", "CRITICAL": "🔴"}.get(
-                report.risk_assessment.get('overall_risk', 'LOW'), "⚪"
-            )
+
+            risk_assessment = report.risk_assessment or {}
+            risk_level = risk_assessment.get('overall_risk', 'UNKNOWN')
+            risk_score = risk_assessment.get('risk_score', 0)
+            risk_color = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🟠", "CRITICAL": "🔴"}.get(risk_level, "⚪")
+
             embed.add_field(
                 name="Ocena Ryzyka",
-                value=f"{risk_color} {report.risk_assessment.get('overall_risk', 'UNKNOWN')}\nWynik: {report.risk_assessment.get('risk_score', 0):.2f}",
+                value=f"{risk_color} {risk_level}\nWynik: {risk_score:.2f}",
                 inline=True
             )
-        
-            # Komponenty dotknięte problemami
-            if report.patterns_by_component:
-                components_text = ", ".join(list(report.patterns_by_component.keys())[:10])
-                embed.add_field(
-                    name="Dotknięte Komponenty",
-                    value=components_text,
-                    inline=False
-                )
-        
-            # Rekomendacje
+
             if report.recommendations:
                 rec_text = "\n".join([f"• {rec}" for rec in report.recommendations[:5]])
                 embed.add_field(
@@ -759,69 +749,71 @@ class CommandCog(commands.Cog):
                     value=rec_text[:1024],
                     inline=False
                 )
-        
+
             await self._reply(interaction, embed=embed)
-        
+
         except Exception as e:
             logger.error(f"/patterns error: {e}", exc_info=True)
             await self._reply(interaction, "❌ Błąd przy analizie wzorców.")
 
     @app_commands.command(
-    name="health",
-    description="Szybki przegląd zdrowia systemu"
-)
+        name="health",
+        description="Szybki przegląd zdrowia systemu"
+    )
     async def health_cmd(self, interaction: discord.Interaction):
         await self._log_action(interaction, "/health")
         await interaction.response.defer(ephemeral=True)
-    
+
         try:
-            # Pobierz szybki raport zdrowia
-            diagnostics_system = DiagnosticsEngine()
-            health_check = await diagnostics_system.quick_health_check()  # AWAIT TUTAJ!
-        
-            # Określ kolor na podstawie statusu
+            # --- POCZĄTEK POPRAWKI ---
+            # Używamy instancji diagnostic_manager z głównego bota
+            if not hasattr(self.main_bot, 'diagnostic_manager'):
+                await self._reply(interaction, "❌ Silnik diagnostyczny nie jest dostępny.")
+                return
+
+            health_check = await self.main_bot.diagnostic_manager.run_quick_health_check()
+            # --- KONIEC POPRAWKI ---
+
+            overall_health = health_check.get('overall_health', 'UNKNOWN')
             status_colors = {
-                'HEALTHY': discord.Color.green(),
-                'WARNING': discord.Color.orange(),
-                'CRITICAL': discord.Color.red(),
-                'UNKNOWN': discord.Color.greyple()
+                'healthy': discord.Color.green(),
+                'warning': discord.Color.orange(),
+                'critical': discord.Color.red(),
+                'unknown': discord.Color.greyple()
             }
-        
+
             embed = discord.Embed(
                 title="🏥 Szybki Przegląd Zdrowia Systemu",
-                color=status_colors.get(health_check.get('overall_health', 'UNKNOWN'), discord.Color.grey()),
+                color=status_colors.get(overall_health.lower(), discord.Color.greyple()),
                 timestamp=datetime.now()
             )
-        
-            # Status główny
-            status_emoji = {"HEALTHY": "🟢", "WARNING": "🟡", "CRITICAL": "🔴", "UNKNOWN": "⚪"}
+
+            status_emoji = {"healthy": "🟢", "warning": "🟡", "critical": "🔴", "unknown": "⚪"}
             embed.add_field(
                 name="Status Ogólny",
-                value=f"{status_emoji.get(health_check.get('overall_health', 'UNKNOWN'), '⚪')} {health_check.get('overall_health', 'UNKNOWN')}",
-                inline=True
+                value=f"{status_emoji.get(overall_health.lower(), '⚪')} {overall_health.upper()}",
+                inline=False
             )
-        
-            # Komponenty
-            if 'component_results' in health_check:
-                healthy_count = sum(1 for r in health_check['component_results'] 
-                                  if r.get('status') == 'healthy')
-                total_components = len(health_check['component_results'])
+
+            component_results = health_check.get('component_results', [])
+            if component_results:
+                healthy_count = sum(1 for r in component_results if r.get('status') == 'healthy')
+                total_components = len(component_results)
                 embed.add_field(
                     name="Komponenty",
                     value=f"Zdrowe: {healthy_count}/{total_components}",
                     inline=True
                 )
-        
-            # Ostatnie problemy
+
             if health_check.get('critical_issues', 0) > 0 or health_check.get('warnings', 0) > 0:
                 embed.add_field(
                     name="Problemy",
                     value=f"Krytyczne: {health_check.get('critical_issues', 0)}\nOstrzeżenia: {health_check.get('warnings', 0)}",
                     inline=True
                 )
-        
+
             await self._reply(interaction, embed=embed)
-        
+
         except Exception as e:
             logger.error(f"/health error: {e}", exc_info=True)
             await self._reply(interaction, "❌ Błąd przy sprawdzaniu zdrowia systemu.")

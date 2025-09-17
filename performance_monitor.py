@@ -16,7 +16,7 @@ from collections import deque, defaultdict
 import json
 import statistics
 from contextlib import asynccontextmanager
-
+from alert_manager import AlertManager, AlertSeverity, AlertCategory
 logger = logging.getLogger(__name__)
 
 class PerformanceLevel(Enum):
@@ -74,9 +74,9 @@ class TradingPerformanceMetrics:
 class PerformanceMonitor:
     """Advanced performance monitoring and analysis"""
     
-    def __init__(self, db_pool, alert_manager, config):
+    def __init__(self, db_pool, discord_notifier, config):
         self.db_pool = db_pool
-        self.alert_manager = alert_manager
+        self.alert_manager = discord_notifier
         self.config = config
         
         # Performance data storage
@@ -321,7 +321,7 @@ class PerformanceMonitor:
                         "network_recv", net_io.bytes_recv, "bytes/s", MetricType.THROUGHPUT
                     )
                 
-                await asyncio.sleep(30)  # Every 30 seconds
+                await asyncio.sleep(120)  # Every 2 minutes
                 
             except Exception as e:
                 logger.error(f"Error monitoring system performance: {e}")
@@ -346,7 +346,7 @@ class PerformanceMonitor:
                             source="performance_monitor"
                         )
                 
-                await asyncio.sleep(300)  # Every 5 minutes
+                await asyncio.sleep(900) # Every 15 minutes
                 
             except Exception as e:
                 logger.error(f"Error monitoring trading performance: {e}")

@@ -82,7 +82,7 @@ class BinanceHandler:
         self.last_exchange_info_update: float = 0.0
         self.hedge_mode: bool = False
         self.leverage_cache: dict[str, tuple[int, float]] = {}  # symbol -> (leverage, timestamp)
-        self.price_cache: dict[str, tuple[float, float]] = {}  # symbol -> (price, timestamp)
+        self.position_cache: dict[str, tuple[list[dict[str, Any]], float]] = {}  # symbol -> (positions, timestamp)
         self.diagnostic_enabled = getattr(Config, "ENABLE_DIAGNOSTICS", True)
         self.trace_tracking = {}  # trace_id -> execution_data
         self.order_trace_mapping = {}  # order_id -> trace_id
@@ -119,6 +119,58 @@ class BinanceHandler:
         except Exception as e:
             logger.critical("Critical error connecting to Binance: %s", e, exc_info=True)
             self.client = None
+
+    # ==== Precision Formatting Methods ====
+    def format_quantity(self, symbol: str, quantity: float) -> float:
+        """Format quantity according to symbol's precision"""
+        symbol_info = self.get_symbol_info(symbol)
+        if symbol_info:
+            # Find LOT_SIZE filter
+            for filter_item in symbol_info.get('filters', []):
+                if filter_item.get('filterType') == 'LOT_SIZE':
+                    step_size = float(filter_item.get('stepSize', 1))
+                    precision = len(str(step_size).split('.')[-1].rstrip('0'))
+                    return round(quantity - (quantity % step_size), precision)
+        return quantity
+
+    def format_price(self, symbol: str, price: float) -> float:
+        """Format price according to symbol's precision"""
+        symbol_info = self.get_symbol_info(symbol)
+        if symbol_info:
+            # Find PRICE_FILTER
+            for filter_item in symbol_info.get('filters', []):
+                if filter_item.get('filterType') == 'PRICE_FILTER':
+                    tick_size = float(filter_item.get('tickSize', 1))
+                    precision = len(str(tick_size).split('.')[-1].rstrip('0'))
+                    return round(price - (price % tick_size), precision)
+        return price
+
+    def validate_order_limits(self, symbol: str, quantity: float, price: float = None) -> Dict[str, Any]:
+        """Validate order against symbol limits"""
+        symbol_info = self.get_symbol_info(symbol)
+        if not symbol_info:
+            return {"valid": False, "error": "Symbol info not found"}
+    
+        for filter_item in symbol_info.get('filters', []):
+            if filter_item.get('filterType') == 'LOT_SIZE':
+                min_qty = float(filter_item.get('minQty', 0))
+                max_qty = float(filter_item.get('maxQty', float('inf')))
+            
+                if quantity < min_qty:
+                    return {"valid": False, "error": f"Quantity {quantity} below minimum {min_qty}"}
+                if quantity > max_qty:
+                    return {"valid": False, "error": f"Quantity {quantity} above maximum {max_qty}"}
+                
+            if price and filter_item.get('filterType') == 'PRICE_FILTER':
+                min_price = float(filter_item.get('minPrice', 0))
+                max_price = float(filter_item.get('maxPrice', float('inf')))
+            
+                if price < min_price:
+                    return {"valid": False, "error": f"Price {price} below minimum {min_price}"}
+                if price > max_price:
+                    return {"valid": False, "error": f"Price {price} above maximum {max_price}"}
+    
+        return {"valid": True}
 
     # ==== v9.1 CORE FEATURE: Precise Leverage Setting ====
     def ensure_symbol_leverage_and_margin(self, symbol: str, leverage: int, margin_type: str = "ISOLATED") -> bool:
@@ -208,11 +260,9 @@ class BinanceHandler:
             logger.error("Failed to fetch Exchange Info: %s", e)
 
     def get_symbol_info(self, symbol: str) -> dict[str, Any] | None:
-        """Get symbol information with caching"""
-        if not self.exchange_info or (time.time() - self.last_exchange_info_update > 3600):
-            self._fetch_and_cache_exchange_info()
-        s = self._normalize_symbol(symbol)
-        return (self.exchange_info or {}).get(s)
+        """Get symbol information with enhanced caching"""
+        info = self.get_cached_symbol_info(symbol)
+        return info if info else None
 
     def _normalize_symbol(self, symbol: str) -> str:
         """Normalize symbol format"""
@@ -297,59 +347,13 @@ class BinanceHandler:
 
     # ==== Account Helpers ====
     def get_balance(self) -> dict[str, float]:
-        """Get USDT balance with caching"""
-        if not self.client:
-            return {"total": 0.0, "available": 0.0}
-        
-        try:
-            current_time = time.time()
-            cache_key = "balance"
-            
-            if hasattr(self, '_balance_cache'):
-                cached_balance, cached_time = self._balance_cache
-                if current_time - cached_time < Config.BALANCE_CACHE_TTL:
-                    return cached_balance
-            
-            account = self.client.futures_account()
-            for asset in account.get("assets", []):
-                if asset.get("asset") == "USDT":
-                    balance = {
-                        "total": float(asset.get("walletBalance", 0.0)),
-                        "available": float(asset.get("availableBalance", 0.0)),
-                    }
-                    self._balance_cache = (balance, current_time)
-                    return balance
-            
-            balance = {"total": 0.0, "available": 0.0}
-            self._balance_cache = (balance, current_time)
-            return balance
-            
-        except Exception as e:
-            logger.error("Error getting balance: %s", e)
-            return {"total": 0.0, "available": 0.0}
+        """Get USDT balance with enhanced caching"""
+        return self.get_cached_balance()
 
     def get_last_price(self, symbol: str) -> float | None:
-        """Get last price with caching"""
-        if not self.client:
-            return None
-        
-        try:
-            s = self._normalize_symbol(symbol)
-            current_time = time.time()
-            
-            if s in self.price_cache:
-                cached_price, cached_time = self.price_cache[s]
-                if current_time - cached_time < Config.PRICE_CACHE_TTL:
-                    return cached_price
-            
-            ticker = self.client.futures_symbol_ticker(symbol=s)
-            price = float(ticker["price"])
-            self.price_cache[s] = (price, current_time)
-            return price
-            
-        except Exception as e:
-            logger.error("Error getting price for %s: %s", symbol, e)
-            return None
+        """Get last price with enhanced caching"""
+        price = self.get_cached_price(symbol)
+        return price if price > 0 else None
 
     def has_open_position(self, symbol: str) -> bool:
         """Check if symbol has open position"""
@@ -442,7 +446,7 @@ class BinanceHandler:
         available = max(0.0, self.get_balance().get("available", 0.0))
 
         # Limit from available margin
-        allowed_by_margin = (available * leverage) / max(1e-9, last_price)
+        allowed_by_margin = (available * leverage) / max(0.001, last_price)
         allowed_by_margin = self._round_value(allowed_by_margin, qty_precision)
 
         # Limit from leverage bracket notional
@@ -599,9 +603,10 @@ class BinanceHandler:
         risk_amount = self.get_balance()["available"] * (canon["risk_percent"] / 100.0)
         if canon.get("stop_loss"):
             if side == "BUY":
-                risk_per_unit = max(0.001, last_price - canon["stop_loss"])
-            else:
-                risk_per_unit = max(0.001, canon["stop_loss"] - last_price)
+                if side == "BUY":
+                    risk_per_unit = max(0.001, abs(last_price - canon["stop_loss"]))
+                else:
+                    risk_per_unit = max(0.001, abs(canon["stop_loss"] - last_price))
             base_qty = risk_amount / risk_per_unit
         else:
             # Default 2% SL
@@ -635,7 +640,8 @@ class BinanceHandler:
                 "quantity": final_qty,
                 "client_order_id": entry_client_id
             })
-            
+        # Formatuj quantity przed wysłaniem do Binance
+        final_qty = self.format_quantity(symbol, final_qty)    
         try:
             order_response = self.client.futures_create_order(
                 symbol=symbol,
@@ -969,15 +975,9 @@ class BinanceHandler:
 
     # ==== Position Management ====
     def check_positions(self) -> list[dict[str, Any]]:
-        """Get all open positions"""
-        if not self.client:
-            return []
-        try:
-            positions = self.client.futures_position_information()
-            return [p for p in positions if abs(float(p.get("positionAmt", 0))) != 0]
-        except Exception as e:
-            logger.error("Error checking positions: %s", e)
-            return []
+        """Get all open positions with caching"""
+        positions = self.get_cached_position_info()
+        return [p for p in positions if abs(float(p.get("positionAmt", 0))) != 0]
 
     def cleanup_stale_orders(self) -> int:
         """Clean up orders for symbols without positions"""
@@ -1192,21 +1192,29 @@ class BinanceHandler:
             return 0.0
 
     async def place_futures_order(self, symbol: str, side: str, quantity: float, 
-                                leverage: int, client_order_id: str = None) -> dict[str, Any]:
+                            leverage: int, client_order_id: str = None) -> dict[str, Any]:
         """Place futures market order"""
         try:
             # Set leverage first
             if not self.ensure_symbol_leverage_and_margin(symbol, leverage):
                 raise Exception(f"Failed to set leverage for {symbol}")
-            
+        
+            # Formatuj quantity używając nowych funkcji
+            formatted_quantity = self.format_quantity(symbol, quantity)
+        
+            # Waliduj limity przed złożeniem zlecenia
+            validation = self.validate_order_limits(symbol, formatted_quantity)
+            if not validation["valid"]:
+                raise Exception(f"Order validation failed: {validation['error']}")
+        
             # Place market order
             order_params = {
                 "symbol": symbol,
                 "side": side,
                 "type": "MARKET",
-                "quantity": quantity
+                "quantity": formatted_quantity  # Użyj sformatowanej wartości
             }
-            
+        
             if client_order_id:
                 order_params["newClientOrderId"] = client_order_id
             
@@ -1315,21 +1323,8 @@ class BinanceHandler:
             return {}
 
     async def get_position_info(self, symbol: str = None) -> list[dict[str, Any]]:
-        """Get position information for symbol or all positions"""
-        if not self.client:
-            return []
-        
-        try:
-            if symbol:
-                symbol = self._normalize_symbol(symbol)
-                positions = self.client.futures_position_information(symbol=symbol)
-            else:
-                positions = self.client.futures_position_information()
-            
-            return positions
-        except Exception as e:
-            logger.error("Error getting position info: %s", e)
-            return []
+        """Get position information with enhanced caching"""
+        return self.get_cached_position_info(symbol)
 
     def calculate_position_size(self, symbol: str, risk_percent: float, entry_price: float, 
                               stop_loss: float, leverage: int) -> float:
@@ -1659,6 +1654,176 @@ class BinanceHandler:
             
         except Exception as e:
             logger.error(f"Error clearing diagnostic data: {e}")
+
+    # ==== ENHANCED EXCHANGE INFO CACHING ====
+def get_cached_exchange_info(self, force_refresh: bool = False) -> Dict[str, Any]:
+    """Get cached exchange info with enhanced caching"""
+    current_time = time.time()
+    cache_ttl = getattr(Config, 'EXCHANGE_INFO_CACHE_TTL', 3600)  # 1 hour default
+    
+    if (force_refresh or 
+        not self.exchange_info or 
+        (current_time - self.last_exchange_info_update) > cache_ttl):
+        
+        logger.info("Refreshing exchange info cache...")
+        self._fetch_and_cache_exchange_info()
+    
+    return self.exchange_info or {}
+
+def get_cached_symbol_info(self, symbol: str) -> Dict[str, Any]:
+    """Get symbol info with enhanced caching"""
+    normalized_symbol = self._normalize_symbol(symbol)
+    exchange_info = self.get_cached_exchange_info()
+    return exchange_info.get(normalized_symbol, {})
+
+# ==== ENHANCED BALANCE CACHING ====
+def get_cached_balance(self, force_refresh: bool = False) -> Dict[str, float]:
+    """Enhanced balance caching with force refresh option"""
+    if not self.client:
+        return {"total": 0.0, "available": 0.0}
+    
+    current_time = time.time()
+    cache_ttl = getattr(Config, 'BALANCE_CACHE_TTL', 30)  # 30 seconds default
+    
+    if (force_refresh or 
+        not hasattr(self, '_balance_cache') or
+        (current_time - self._balance_cache[1]) > cache_ttl):
+        
+        try:
+            account = self.client.futures_account()
+            for asset in account.get("assets", []):
+                if asset.get("asset") == "USDT":
+                    balance = {
+                        "total": float(asset.get("walletBalance", 0.0)),
+                        "available": float(asset.get("availableBalance", 0.0)),
+                    }
+                    self._balance_cache = (balance, current_time)
+                    logger.debug(f"Balance cache refreshed: {balance}")
+                    return balance
+            
+            balance = {"total": 0.0, "available": 0.0}
+            self._balance_cache = (balance, current_time)
+            return balance
+            
+        except Exception as e:
+            logger.error(f"Error refreshing balance cache: {e}")
+            # Return cached value if available
+            if hasattr(self, '_balance_cache'):
+                return self._balance_cache[0]
+            return {"total": 0.0, "available": 0.0}
+    
+    return self._balance_cache[0]
+
+# ==== ENHANCED PRICE CACHING ====
+def get_cached_price(self, symbol: str, force_refresh: bool = False) -> float:
+    """Enhanced price caching with force refresh option"""
+    if not self.client:
+        return 0.0
+    
+    normalized_symbol = self._normalize_symbol(symbol)
+    current_time = time.time()
+    cache_ttl = getattr(Config, 'PRICE_CACHE_TTL', 10)  # 10 seconds default
+    
+    if (force_refresh or 
+        normalized_symbol not in self.price_cache or
+        (current_time - self.price_cache[normalized_symbol][1]) > cache_ttl):
+        
+        try:
+            ticker = self.client.futures_symbol_ticker(symbol=normalized_symbol)
+            price = float(ticker["price"])
+            self.price_cache[normalized_symbol] = (price, current_time)
+            logger.debug(f"Price cache refreshed for {normalized_symbol}: {price}")
+            return price
+            
+        except Exception as e:
+            logger.error(f"Error refreshing price cache for {normalized_symbol}: {e}")
+            # Return cached value if available
+            if normalized_symbol in self.price_cache:
+                return self.price_cache[normalized_symbol][0]
+            return 0.0
+    
+    return self.price_cache[normalized_symbol][0]
+
+# ==== POSITION INFO CACHING ====
+def __init__(self):
+    # ... existing __init__ code ...
+    # Add this line after existing cache declarations:
+    self.position_cache: Dict[str, Tuple[List[Dict[str, Any]], float]] = {}  # symbol -> (positions, timestamp)
+
+def get_cached_position_info(self, symbol: str = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
+    """Get cached position information"""
+    if not self.client:
+        return []
+    
+    current_time = time.time()
+    cache_ttl = getattr(Config, 'POSITION_CACHE_TTL', 15)  # 15 seconds default
+    cache_key = symbol or "ALL_POSITIONS"
+    
+    if (force_refresh or 
+        cache_key not in self.position_cache or
+        (current_time - self.position_cache[cache_key][1]) > cache_ttl):
+        
+        try:
+            if symbol:
+                normalized_symbol = self._normalize_symbol(symbol)
+                positions = self.client.futures_position_information(symbol=normalized_symbol)
+            else:
+                positions = self.client.futures_position_information()
+            
+            self.position_cache[cache_key] = (positions, current_time)
+            logger.debug(f"Position cache refreshed for {cache_key}: {len(positions)} positions")
+            return positions
+            
+        except Exception as e:
+            logger.error(f"Error refreshing position cache for {cache_key}: {e}")
+            # Return cached value if available
+            if cache_key in self.position_cache:
+                return self.position_cache[cache_key][0]
+            return []
+    
+    return self.position_cache[cache_key][0]
+
+# ==== CACHE MANAGEMENT ====
+def clear_all_caches(self) -> None:
+    """Clear all caches including new ones"""
+    self.leverage_cache.clear()
+    self.price_cache.clear()
+    self.position_cache.clear()
+    if hasattr(self, '_balance_cache'):
+        delattr(self, '_balance_cache')
+    self.exchange_info = None
+    self.last_exchange_info_update = 0.0
+    logger.info("🧹 All caches cleared (including enhanced caches)")
+
+def get_cache_status(self) -> Dict[str, Any]:
+    """Get detailed cache status"""
+    current_time = time.time()
+    
+    return {
+        "leverage_cache": {
+            "size": len(self.leverage_cache),
+            "entries": list(self.leverage_cache.keys())[:5]  # First 5 entries
+        },
+        "price_cache": {
+            "size": len(self.price_cache),
+            "symbols": list(self.price_cache.keys())[:10],  # First 10 symbols
+            "oldest_entry_age": min([current_time - ts for _, ts in self.price_cache.values()]) if self.price_cache else 0
+        },
+        "position_cache": {
+            "size": len(self.position_cache),
+            "keys": list(self.position_cache.keys()),
+            "oldest_entry_age": min([current_time - ts for _, ts in self.position_cache.values()]) if self.position_cache else 0
+        },
+        "balance_cache": {
+            "active": hasattr(self, '_balance_cache'),
+            "age": current_time - self._balance_cache[1] if hasattr(self, '_balance_cache') else 0
+        },
+        "exchange_info_cache": {
+            "active": self.exchange_info is not None,
+            "symbols_count": len(self.exchange_info) if self.exchange_info else 0,
+            "age": current_time - self.last_exchange_info_update if self.exchange_info else 0
+        }
+    }
 
 # Singleton instance
 binance_handler = BinanceHandler()

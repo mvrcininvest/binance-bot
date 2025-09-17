@@ -360,7 +360,16 @@ class DecisionEngine:
                 f"(confidence: {confidence_score:.3f}, time: {execution_time}ms)"
             )
             
-            return decision_result
+            return {
+                "should_trade": decision_result.outcome == DecisionOutcome.ACCEPTED,
+                "confidence": decision_result.confidence_score,
+                "reasoning": decision_result.reasoning_summary,
+                "tier": signal_data.get("tier", "Standard"),
+                "parameters": {
+                    "leverage": min(max(int(decision_result.final_decision.get("recommended_position_risk", 0.02) * 500), 1), Config.MAX_LEVERAGE),
+                    "position_size_multiplier": decision_result.final_decision.get("recommended_position_risk", 0.02) / Config.RISK_PER_TRADE
+                }
+            }
             
         except Exception as e:
             execution_time = int((time.time() - start_time) * 1000)
@@ -393,7 +402,7 @@ class DecisionEngine:
         context = {
             "timestamp": datetime.utcnow().isoformat(),
             "market_session": self._get_market_session(),
-            "system_mode": getattr(Config, "DEFAULT_MODE", "NORMAL"),
+            "system_mode": getattr(Config, "DEFAULT_MODE", "balanced"),
         }
         
         try:
@@ -406,7 +415,7 @@ class DecisionEngine:
                     {
                         "symbol": pos.symbol,
                         "side": pos.side,
-                        "size": float(pos.quantity) if pos.quantity else 0,
+                        "size": float(pos.entry_quantity) if pos.entry_quantity else 0,
                         "pnl": float(pos.pnl_usdt) if pos.pnl_usdt else 0
                     }
                     for pos in open_positions

@@ -264,7 +264,7 @@ class TradingMLPredictor:
             logger.error(f"Błąd trenowania: {e}", exc_info=True)
             return False
 
-    def predict(self, signal_data: dict[str, Any]) -> dict[str, float]:
+    async def predict(self, signal_data: dict[str, Any]) -> dict[str, float]:
         """Główna funkcja predykcji."""
         if not self.win_prob_model or not self.pnl_model:
             return {

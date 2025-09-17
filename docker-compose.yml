@@ -76,6 +76,7 @@ services:
       - "127.0.0.1:5000:5000"
       - "127.0.0.1:8001:8001"  # Diagnostic API
       - "127.0.0.1:8002:8002"  # Diagnostic Dashboard
+      - "9999:9999"
     env_file:
       - .env
     environment:
@@ -89,6 +90,8 @@ services:
       - DIAGNOSTIC_DASHBOARD_ENABLED=true
       - PATTERN_DETECTION_ENABLED=true
       - PERFORMANCE_MONITORING_ENABLED=true
+      - WEBHOOK_TIMEOUT=5
+      - SIGNAL_PROCESSING_TIMEOUT=10
     volumes:
       - ./data:/app/data:rw
       - ./logs:/app/logs:rw
@@ -102,8 +105,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G  # Zwiększone z 1G dla diagnostyki
-          cpus: '1.0'   # Zwiększone z 0.8 dla diagnostyki
+          memory: 2G  # Zwiększone z 1G dla diagnostyki
+          cpus: '1.5'   # Zwiększone z 0.8 dla diagnostyki
         reservations:
           memory: 768M  # Zwiększone z 512M
           cpus: '0.5'   # Zwiększone z 0.4

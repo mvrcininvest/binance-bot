@@ -27,11 +27,19 @@ class DiscordNotifier:
 
     def __init__(self):
         """Initialize Discord notifier with v9.1 enhancements"""
-        self.webhook_url = Config.DISCORD_WEBHOOK
-        self.alerts_webhook = Config.DISCORD_ALERTS_WEBHOOK
-        self.trades_webhook = Config.DISCORD_TRADES_WEBHOOK
-        self.errors_webhook = Config.DISCORD_ERRORS_WEBHOOK
-        self.analytics_webhook = Config.DISCORD_ANALYTICS_WEBHOOK
+        self.webhook_url = getattr(Config, 'DISCORD_WEBHOOK', None)
+        self.performance_webhook = getattr(Config, 'DISCORD_PERFORMANCE_WEBHOOK', None)
+        self.bot_alerts_webhook = getattr(Config, 'DISCORD_BOT_ALERTS_WEBHOOK', None) 
+        self.signal_decisions_webhook = getattr(Config, 'DISCORD_SIGNAL_DECISIONS_WEBHOOK', None)
+        self.trade_entries_webhook = getattr(Config, 'DISCORD_TRADE_ENTRIES_WEBHOOK', None)
+        self.trade_exits_webhook = getattr(Config, 'DISCORD_TRADE_EXITS_WEBHOOK', None)
+        self.bot_diagnostics_webhook = getattr(Config, 'DISCORD_BOT_DIAGNOSTICS_WEBHOOK', None)
+        self.bot_logs_webhook = getattr(Config, 'DISCORD_BOT_LOGS_WEBHOOK', None)
+        # Fallback webhooks for compatibility
+        self.alerts_webhook = getattr(Config, 'DISCORD_ALERTS_WEBHOOK', None)
+        self.trades_webhook = getattr(Config, 'DISCORD_TRADES_WEBHOOK', None)
+        self.errors_webhook = getattr(Config, 'DISCORD_ERRORS_WEBHOOK', None)
+        self.analytics_webhook = getattr(Config, 'DISCORD_ANALYTICS_WEBHOOK', None)
 
         # v9.1 CORE: Enhanced tier colors
         self.tier_colors = {
@@ -132,7 +140,6 @@ class DiscordNotifier:
         try:
             start_time = datetime.utcnow()
             symbol = alert.get("symbol", "UNKNOWN")
-            tier = alert.get("tier", "Standard")
             tier = alert.get("tier", "Standard")
             symbol = alert.get("symbol", "UNKNOWN")
             action = alert.get("action", "unknown")
@@ -290,7 +297,7 @@ class DiscordNotifier:
                 )
 
             # Send to appropriate channel
-            webhook_url = self.trades_webhook if accepted else self.alerts_webhook
+            webhook_url = self.signal_decisions_webhook or (self.trades_webhook if accepted else self.alerts_webhook)
             result = await self._send_webhook(webhook_url or self.webhook_url, embed)
     
             # Log wrapper execution
@@ -312,8 +319,6 @@ class DiscordNotifier:
         """Send enhanced trade opened notification - v9.1 ENHANCED"""
         try:
             start_time = datetime.utcnow()
-            symbol = trade_data.get("symbol", "UNKNOWN")
-            side = trade_data.get("side", "UNKNOWN")
             symbol = trade_data.get("symbol", "UNKNOWN")
             side = trade_data.get("side", "UNKNOWN")
             tier = trade_data.get("tier", "Standard")
@@ -401,7 +406,7 @@ class DiscordNotifier:
                 )
 
             # Send to trades channel
-            result = await self._send_webhook(self.trades_webhook or self.webhook_url, embed)
+            result = await self._send_webhook(self.trade_entries_webhook or self.trades_webhook or self.webhook_url, embed)
     
             # Log wrapper execution
             duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -532,7 +537,7 @@ class DiscordNotifier:
                 )
 
             # Send to trades channel
-            result = await self._send_webhook(self.trades_webhook or self.webhook_url, embed)
+            result = await self._send_webhook(self.trade_exits_webhook or self.trades_webhook or self.webhook_url, embed)
     
             # Log wrapper execution
             duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -695,7 +700,7 @@ class DiscordNotifier:
                 )
 
             # Send to analytics channel or main
-            result = await self._send_webhook(self.analytics_webhook or self.webhook_url, embed)
+            result = await self._send_webhook(self.performance_webhook or self.analytics_webhook or self.webhook_url, embed)
 
             duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             await self.log_notification_trace(
@@ -761,7 +766,7 @@ class DiscordNotifier:
             )
 
             # Send to errors channel or main
-            result = await self._send_webhook(self.errors_webhook or self.webhook_url, embed)
+            result = await self._send_webhook(self.bot_alerts_webhook or self.alerts_webhook or self.webhook_url, embed)
     
             # Log wrapper execution
             duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -1071,7 +1076,7 @@ class DiscordNotifier:
                     inline=True,
                 )
 
-            result = await self._send_webhook(self.analytics_webhook or self.webhook_url, embed)
+            result = await self._send_webhook(self.bot_diagnostics_webhook or self.analytics_webhook or self.webhook_url, embed)
 
             duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             await self.log_notification_trace(
@@ -1416,9 +1421,62 @@ class DiscordNotifier:
             for key, value in metrics.items():
                 embed.add_embed_field(name=key.replace('_', ' ').title(), value=str(value), inline=True)
         
-            return await self._send_webhook(self.alerts_webhook or self.webhook_url, embed)
+            return await self._send_webhook(self.performance_webhook or self.alerts_webhook or self.webhook_url, embed)
         except Exception as e:
             logger.error(f"Error sending performance update: {e}")
+            return False
+
+    async def send_embed(self, embed_data: Dict) -> bool:
+        """Send embed using Discord webhook - compatibility method for alert_manager"""
+        try:
+            start_time = datetime.utcnow()
+        
+            # Convert dict embed to DiscordEmbed object
+            embed = DiscordEmbed(
+                title=embed_data.get("title", "Alert"),
+                description=embed_data.get("description", ""),
+                color=embed_data.get("color", 0x808080)
+            )
+        
+            # Add timestamp if not provided
+            if "timestamp" not in embed_data:
+                embed.timestamp = datetime.utcnow()
+        
+            # Add fields
+            for field in embed_data.get("fields", []):
+                embed.add_embed_field(
+                    name=field.get("name", "Field"),
+                    value=field.get("value", "Value"),
+                    inline=field.get("inline", True)
+                )
+        
+            # Add footer
+            if embed_data.get("footer"):
+                footer = embed_data["footer"]
+                embed.set_footer(text=footer.get("text", ""))
+        
+            # Send to alerts webhook (since this is for alert_manager)
+            result = await self._send_webhook(
+                self.alerts_webhook or self.webhook_url, 
+                embed, 
+                username="Alert Manager v9.1"
+            )
+        
+            # Log execution
+            duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            await self.log_notification_trace(
+                "send_embed", 
+                result, 
+                duration, 
+                f"Title: {embed_data.get('title', 'Unknown')}"
+            )
+        
+            return result
+        
+        except Exception as e:
+            duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            await self.log_notification_trace("send_embed", False, duration, f"Error: {str(e)}")
+            logger.error(f"Error sending embed: {e}")
             return False
 
 # v9.1 CORE: Singleton instance with enhanced features

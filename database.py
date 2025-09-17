@@ -8,13 +8,14 @@ import logging
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
-
+import time
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
     Float,
     Integer,
+    BigInteger,
     JSON,
     String,
     Text,
@@ -386,7 +387,7 @@ class AlertHistory(Base):
     raw_payload = Column(JSON)
     headers = Column(JSON)
     # v9.1 NEW: Latency tracking
-    tv_ts = Column(Integer)  # TradingView timestamp (ms)
+    tv_ts = Column(BigInteger, nullable=False)  # TradingView timestamp (ms)
     api_latency_ms = Column(Integer)  # API processing latency
     end_to_end_latency_ms = Column(Integer)  # Total latency
 
@@ -454,7 +455,7 @@ class DecisionTrace(Base):
     decision_latency_ms = Column(Integer)
     
     # Links
-    trade_id = Column(Integer)  # Link to Trade if executed
+    trade_id = Column(BigInteger)  # Link to Trade if executed
     alert_history_id = Column(Integer)  # Link to AlertHistory
     
     # Raw data storage
@@ -520,7 +521,7 @@ class PineHealthLog(Base):
     
     # Basic info
     symbol = Column(String(20), nullable=False, index=True)
-    timeframe = Column(String(10), nullable=False)
+    timeframe = Column(String(10), nullable=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     
     # Health scores (0.0-1.0)
@@ -648,42 +649,25 @@ class PatternAlert(Base):
 
 class SystemHealth(Base):
     """Overall system health monitoring"""
-    
+
     __tablename__ = "system_health"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
-    
-    # Component health scores (0.0-1.0)
-    overall_health = Column(Float, nullable=False)
-    pine_script_health = Column(Float)
-    ml_model_health = Column(Float)
-    binance_api_health = Column(Float)
-    database_health = Column(Float)
-    discord_health = Column(Float)
-    
-    # Performance metrics
-    avg_processing_time_ms = Column(Integer)
-    avg_api_latency_ms = Column(Integer)
-    error_rate_pct = Column(Float)
-    
-    # Trading metrics (last 24h)
-    signals_received = Column(Integer)
-    signals_accepted = Column(Integer)
-    trades_opened = Column(Integer)
-    trades_closed = Column(Integer)
-    
-    # System resources
-    cpu_usage_pct = Column(Float)
-    memory_usage_pct = Column(Float)
-    disk_usage_pct = Column(Float)
-    
-    # Alerts and warnings
-    active_warnings = Column(JSON)
-    critical_issues = Column(JSON)
-    
+
+    # --- POPRAWKA: Zmienione i dodane pola, aby pasowały do logiki w diagnostics.py ---
+    overall_status = Column(String(20), nullable=False) # Zamiast overall_health
+    health_score = Column(Float)
+    component_results = Column(JSON)
+    system_metrics = Column(JSON)
+    trading_metrics = Column(JSON)
+    recommendations = Column(JSON)
+    execution_time_ms = Column(Integer)
+
+    # --- POPRAWKA: Usunięte stare, nieużywane pola ---
+
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     __table_args__ = (
         Index("idx_system_health_time", "timestamp"),
     )
@@ -2276,7 +2260,7 @@ class MLPrediction(Base):
     processing_time_ms = Column(Integer)
     
     # Links
-    trade_id = Column(Integer)
+    trade_id = Column(BigInteger)
     decision_trace_id = Column(String(64))
     
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -2330,37 +2314,33 @@ class MLModelMetrics(Base):
         UniqueConstraint("model_name", "model_version", "metric_date", name="uq_model_metrics"),
     )
 
-def log_ml_prediction(session: Session, prediction_data: Dict[str, Any]) -> MLPrediction:
-    """
-    Log ML prediction to database
-    
-    Args:
-        session: Database session
-        prediction_data: Dictionary containing prediction data
-        
-    Returns:
-        MLPrediction: Created prediction record
-    """
+def log_ml_prediction(symbol: str, prediction_data: dict, model_version: str):
+    """Log ML prediction to database"""
     try:
-        # Create MLPrediction instance
-        ml_prediction = MLPrediction(
-            prediction_id=prediction_data.get('prediction_id'),
-            symbol=prediction_data.get('symbol'),
-            model_name=prediction_data.get('model_name'),
-            prediction_type=prediction_data.get('prediction_type'),
-            input_features=prediction_data.get('input_features', {}),
-            prediction_value=prediction_data.get('prediction_value'),
-            confidence_score=prediction_data.get('confidence_score'),
-            processing_time_ms=prediction_data.get('processing_time_ms'),
-            timestamp=datetime.utcnow()
-        )
-        
-        session.add(ml_prediction)
-        session.commit()
-        
-        return ml_prediction
-        
+        with Session() as session:
+            prediction = MLPrediction(
+                prediction_id=f"ml_{int(time.time() * 1000)}",
+                symbol=symbol,
+                model_name="trading_predictor",
+                model_version=model_version,
+                prediction_type="win_probability",
+                input_features=prediction_data.get("features", {}),
+                prediction_value=prediction_data.get("win_probability", 0.5),
+                confidence_score=prediction_data.get("confidence", 0.5),
+                processing_time_ms=prediction_data.get("processing_time_ms", 0)
+            )
+            session.add(prediction)
+            session.commit()
     except Exception as e:
-        session.rollback()
         logger.error(f"Failed to log ML prediction: {e}")
-        raise
+
+def log_pine_health(session, health_data: Dict[str, Any]):
+    """Log Pine Script health data"""
+    try:
+        # Implementation depends on your PineHealthLog model
+        # For now, just log it
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Pine health logged: {health_data}")
+    except Exception as e:
+        logger.error(f"Error logging pine health: {e}")    

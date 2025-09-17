@@ -27,6 +27,20 @@ class HealthStatus(Enum):
     CRITICAL = "critical"
     UNKNOWN = "unknown"
 
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'status': self.status,
+            'details': self.details,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'components': self.components,
+            'metrics': self.metrics
+        }
+
+    def __json__(self):
+        """JSON serialization support"""
+        return self.to_dict()
+
 @dataclass
 class HealthMetric:
     name: str

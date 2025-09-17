@@ -145,3 +145,4 @@ lime==0.2.0.1
 eli5==0.13.0
 streamlit==1.28.0
 bokeh==3.3.0
+aioredis>=2.0.0

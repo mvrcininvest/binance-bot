@@ -26,6 +26,7 @@ class ModeManager:
         self.mode_rules = {
             "conservative": ConservativeMode(),
             "balanced": BalancedMode(),
+            "normal": BalancedMode(),
             "aggressive": AggressiveMode(),
             "scalping": ScalpingMode(),
             "swing": SwingMode(),
@@ -41,28 +42,40 @@ class ModeManager:
 
         logger.info("🎯 Mode Manager v9.1 initialized with enhanced features")
 
+    def get_mode_parameters(self, mode: Optional[str] = None) -> Dict[str, Any]:
+        """Get parameters for specified mode"""
+        if not mode:
+            mode = self.get_current_mode()
+    
+        mode_handler = self.mode_rules.get(mode)
+        if not mode_handler:
+            logger.error(f"❌ No handler for mode: {mode}")
+            return {}
+    
+        # Return default parameters for the mode
+        base_params = {
+            "leverage": 10,
+            "position_size_multiplier": 1.0,
+            "stop_loss_multiplier": 1.0,
+            "risk_percent": Config.RISK_PER_TRADE,
+        }
+    
+        # Get mode-specific parameters
+        if hasattr(mode_handler, 'get_trade_parameters'):
+            try:
+                mode_params = mode_handler.get_trade_parameters({})
+                base_params.update(mode_params)
+            except Exception as e:
+                logger.error(f"Error getting mode parameters: {e}")
+    
+        return base_params
+
     def get_current_mode(self) -> str:
-        """Get current trading mode with v9.1 enhancements"""
+        """Zwraca aktualnie ustawiony tryb pracy bota (np. normal, aggressive)."""
         with Session() as session:
+            # Ta funkcja teraz robi tylko jedno: odczytuje i zwraca tryb z bazy danych.
+            # Cała skomplikowana logika została przeniesiona do głównego pliku bota.
             mode = get_setting(session, "mode", Config.DEFAULT_MODE)
-
-            # v9.1 CORE: Check for emergency override
-            if get_setting(session, "emergency_enabled", False):
-                return "emergency"
-
-            # v9.1 CORE: Auto mode switching based on performance
-            if Config.AUTO_MODE_SWITCH:
-                suggested_mode = self.should_auto_switch_mode()
-                if suggested_mode and suggested_mode != mode:
-                    if self._can_switch_mode():
-                        logger.info(
-                            f"🔄 Auto-switching from {mode} to {suggested_mode}"
-                        )
-                        self.set_mode(
-                            suggested_mode, "Auto-switch based on performance"
-                        )
-                        return suggested_mode
-
             self.current_mode = mode
             return mode
 
